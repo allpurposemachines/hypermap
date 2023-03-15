@@ -1,23 +1,21 @@
 import test from 'node:test';
 import assert from 'assert';
-import puppeteer from 'puppeteer';
+import mockServer from 'pptr-mock-server';
 
-// import { Client } from 'main';
+import { Client } from './main.js';
 
 test('creating and launching a new Client', async () => {
-	const b = await puppeteer.launch();
-	const tab = await b.newPage();
-	const testUrl = 'https://www.google.com/';
-	await tab.goto(testUrl);
+	const client = await Client.launch();
+	const tab = await client.newTab({debug: true});
 
-	assert.equal(tab.url(), testUrl);
+	const baseUrl = 'http://localhost/';
+	const mockRequest = await mockServer.default.init(tab, {
+		baseApiUrl: baseUrl
+	});
+	const responseConfig = {body: {result: 'ok'}};
+	mockRequest.get(baseUrl, 200, responseConfig);
 
-	await b.close();
-
-	// const client = new Client();
-	// await client.launch();
-	// const tab = client.newTab();
-	// const testUrl = 'http://localhost/';
-	// await tab.goto(testUrl);
-	// expect(tab.url()).toBe(testUrl);
+	await tab.goto(baseUrl);
+	assert.equal(tab.url(), baseUrl);
+	await client.close();
 });
