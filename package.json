@@ -13,7 +13,6 @@
   "license": "ISC",
   "dependencies": {
     "esm": "^3.2.25",
-    "pptr-mock-server": "^1.2.0",
     "puppeteer": "^19.7.5"
   },
   "devDependencies": {

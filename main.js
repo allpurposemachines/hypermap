@@ -24,8 +24,8 @@ export class Client {
 			await tab.evaluate(shim);
 		});
 
-		tab.data = async () => {
-			const hypermapJson = await tab.evaluate(() => {
+		tab.data = async function () {
+			const hypermapJson = await this.evaluate(() => {
 				return globalThis.serializedHypermap();
 			});
 			return Hypermap.fromJSON(hypermapJson);
@@ -38,6 +38,12 @@ export class Client {
 					hypermap.deepGet(path).fetch();
 				}, path)
 			]);
+		};
+
+		tab.set = async function (key, value) {
+			this.evaluate((key, value) => {
+				hypermap.set(key, value);
+			});
 		};
 
 		return tab;

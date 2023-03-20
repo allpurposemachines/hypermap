@@ -7,6 +7,7 @@ const isMap = (value) => {
 export class Hypermap extends EventTarget {
 	attributes;
 	map;
+	tab;
 
 	constructor(data, attributes) {
 		super();
@@ -76,22 +77,26 @@ export class Hypermap extends EventTarget {
 
 	// Modifiers
 	// TODO: this only changes it client-side
-	set(key, val) {
+	async set(key, val) {
 		this.map.set(key, val);
 		this.dispatchEvent(new Event('changed'));
 		return this;
 	}
 
-	setWithoutEvent(key, val) {
-		this.map.set(key, val);
-	}
+	// setWithoutEvent(key, val) {
+	// 	this.map.set(key, val);
+	// 	tab?.synchronizeSate();
+	// 	return this;
+	// }
 
-	deepSet(path, value) {
-		if (path.length > 0) {
-			const key = path.pop();
-			this.deepGet(path).set(key, value);
-		}
-	};
+	// deepSet(path, value) {
+	// 	if (path.length > 0) {
+	// 		const key = path.pop();
+	// 		this.deepGet(path).set(key, value);
+	// 	}
+	// 	tab?.synchronizeSate();
+	// 	return this;
+	// };
 
 	// Conversions
 	toJSON() {
