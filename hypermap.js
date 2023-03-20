@@ -34,8 +34,26 @@ export class Hypermap extends EventTarget {
 		return hypermap;
 	}
 
+	// State changes
+	fetch() {
+		throw new Error('Not implemented');
+	}
+
+	deepFetch(path) {
+		throw new Error('Not implemented');
+	}
+
+	// Accessors
 	forEach(callbackfn) {
 		this.map.forEach(callbackfn);
+	}
+
+	keys() {
+		return this.map.keys();
+	}
+
+	has(key) {
+		return this.map.has(key);
 	}
 
 	get(key) {
@@ -56,17 +74,8 @@ export class Hypermap extends EventTarget {
 		return currentNode;
 	};
 
-	deepSet(path, value) {
-		if (path.length > 0) {
-			const key = path.pop();
-			this.deepGet(path).set(key, value);
-		}
-	};
-
-	has(key) {
-		return this.map.has(key);
-	}
-
+	// Modifiers
+	// TODO: this only changes it client-side
 	set(key, val) {
 		this.map.set(key, val);
 		this.dispatchEvent(new Event('changed'));
@@ -77,10 +86,14 @@ export class Hypermap extends EventTarget {
 		this.map.set(key, val);
 	}
 
-	keys() {
-			return this.map.keys();
-	}
+	deepSet(path, value) {
+		if (path.length > 0) {
+			const key = path.pop();
+			this.deepGet(path).set(key, value);
+		}
+	};
 
+	// Conversions
 	toJSON() {
 		const obj = Object.fromEntries(this.map);
 		obj['@'] = Object.fromEntries(this.attributes);

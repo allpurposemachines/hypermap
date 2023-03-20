@@ -31,6 +31,15 @@ export class Client {
 			return Hypermap.fromJSON(hypermapJson);
 		}
 
+		tab.fetch = async function (path) {
+			await Promise.all([
+				this.waitForNavigation(),
+				this.evaluate((path) => {
+					hypermap.deepGet(path).fetch();
+				}, path)
+			]);
+		};
+
 		return tab;
 	}
 

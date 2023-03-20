@@ -64,16 +64,10 @@ class Hypermap extends EventTarget {
 			body[key] = value;
 		});
 
-		console.log('Sending', body);
-
 		const options = { method, headers, body: JSON.stringify(body) };
-
 		const response = await fetch(url, options);
 
-		console.log(response, response.redirected);
-
 		if (response.redirected) {
-			console.log('here');
 			window.location.assign(response.url);
 		}
 	}
@@ -148,16 +142,6 @@ class Hypermap extends EventTarget {
 	}
 
 	toJSON() {
-		// const toObj = (map) => Array.from(map).reduce((obj, [key, value]) => {
-		// 	let newVal = value;
-		// 	if (value.constructor.name === 'Hypermap') {
-    //     console.log('Converting', key, value, value.toJSON());
-		// 		newVal = value.toJSON()
-		// 	} else if (Array.isArray(value)) {
-		// 		newVal = value.map(e => value.constructor.name === 'Hypermap' ? e.toJSON() : e);
-		// 	}
-		// 	return Object.assign(obj, { [key]: newVal });
-		// }, {});
 		const obj = Object.fromEntries(this.map);
 		obj['@'] = Object.fromEntries(this.attributes);
 		return obj;
