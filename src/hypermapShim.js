@@ -20,30 +20,24 @@ class Hypermap extends EventTarget {
 		const data = entries.filter(([key, _value]) => key !== "@");
 
 		const hypermap = new Hypermap(data, Object.entries(attributes));
-		hypermap.forEach(async (value, key) => {
+		hypermap.forEach((value, key) => {
 			if (isMap(value)) {
-				hypermap.set(key, await this.fromJSON(value));
+				hypermap.set(key, this.fromJSON(value));
 			} else if (Array.isArray(value)) {
-				value.map(async (item, index) => {
+				value.map((item, index) => {
 					if (isMap(item)) {
-						value[index] = await this.fromJSON(item);
+						value[index] = this.fromJSON(item);
 					}
 				});
 			}
 		});
-		hypermap.loadScript();
-		return hypermap;
-	}
-
-	loadScript() {
-		if (this.attributes?.has('script')) {
-			const url = new URL(this.attributes.get('script'), window.location.href).toString();
-			try {
-				import(url);
-			} catch(error) {
-				console.log(error);
-			}
+		
+		// Push script URLs to a queue to load later
+		if (hypermap.attributes?.has('script')) {
+			const url = new URL(hypermap.attributes.get('script'), window.location.href);
+			globalThis.scriptQueue.push(url);
 		}
+		return hypermap;
 	}
 
 	async fetch() {
@@ -148,9 +142,17 @@ class Hypermap extends EventTarget {
 	}
 }
 
+globalThis.scriptQueue = [];
 const serializedHypermap = document.body.querySelector('pre').innerHTML;
 const jsonHypermap = JSON.parse(serializedHypermap);
-globalThis.hypermap = Hypermap.fromJSON(jsonHypermap);
+globalThis.hypermap = Hypermap.fromJSON(jsonHypermap)
+globalThis.scriptQueue.map(async url => {
+	try {
+		await import(url);
+	} catch(err) {
+		console.log(`Error importing script at ${url}`, err.message);
+	}
+});
 
 globalThis.serializedHypermap = () => {
   return JSON.parse(JSON.stringify(hypermap));

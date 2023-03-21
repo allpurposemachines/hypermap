@@ -2,11 +2,11 @@
   "name": "universal-client",
   "version": "0.0.1",
   "description": "",
-  "main": "index.js",
-  "module": "main.js",
+  "main": "src/index.js",
+  "module": "src/main.js",
   "type": "module",
   "scripts": {
-    "test": "node test.js"
+    "test": "node tests/test.js"
   },
   "keywords": [],
   "author": "",

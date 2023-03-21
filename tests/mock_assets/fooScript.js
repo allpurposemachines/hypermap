@@ -1,0 +1,1 @@
+hypermap.set('Foo', 'Bar');

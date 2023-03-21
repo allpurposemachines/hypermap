@@ -19,7 +19,7 @@ export class Client {
 			tab?.on('console', msg => console.log('PAGE LOG:', msg.text()));
 		}
 
-		const shim = fs.readFileSync('./hypermapShim.js', 'utf8');
+		const shim = fs.readFileSync('./src/hypermapShim.js', 'utf8');
 		tab.on('load', async () => {
 			await tab.evaluate(shim);
 		});

@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 const index = {
 	completed: 0,
 	todos: [
@@ -22,6 +24,12 @@ const first = {
 	title: 'Buy milk',
 	completed: false
 };
+
+const scriptMap = {
+	'@': {
+		script: '/fooScript.js'
+	}
+}
 
 const mockTodoServer = (baseUrl) => ({
 	handleRequest: request => {
@@ -54,6 +62,16 @@ const mockTodoServer = (baseUrl) => ({
 				break;
 			case baseUrl + '1/':
 				request.respond(partialResponse(first));
+				break;
+			case baseUrl + 'scriptTest/':
+				request.respond(partialResponse(scriptMap));
+				break;
+			case baseUrl + 'fooScript.js':
+				request.respond({
+					status: 200,
+					contentType: 'application/javascript',
+					body: fs.readFileSync('./tests/mock_assets/fooScript.js', 'utf8')
+				});
 				break;
 		}
 	}
