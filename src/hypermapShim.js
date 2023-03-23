@@ -16,8 +16,8 @@ class Hypermap extends EventTarget {
 
 	static fromJSON(object) {
 		const entries = Object.entries(object);
-		const attributes = entries.find(([key, _value]) => key === "@")?.at(1) || {};
-		const data = entries.filter(([key, _value]) => key !== "@");
+		const attributes = entries.find(([key]) => key === "@")?.at(1) || {};
+		const data = entries.filter(([key]) => key !== "@");
 
 		const hypermap = new Hypermap(data, Object.entries(attributes));
 		hypermap.forEach((value, key) => {
@@ -86,14 +86,14 @@ class Hypermap extends EventTarget {
 			}
 		});
 		return currentNode;
-	};
+	}
 
 	deepSet(path, value) {
 		if (path.length > 0) {
 			const key = path.pop();
 			this.deepGet(path).set(key, value);
 		}
-	};
+	}
 
 	has(key) {
 		return this.map.has(key);
@@ -155,5 +155,5 @@ globalThis.scriptQueue.map(async url => {
 });
 
 globalThis.serializedHypermap = () => {
-  return JSON.parse(JSON.stringify(hypermap));
+  return JSON.parse(JSON.stringify(globalThis.hypermap));
 };

@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer';
-import fs from 'fs';
+import * as fs from 'fs';
 import { Hypermap } from './hypermap.js';
 
 export class Client {
@@ -19,7 +19,7 @@ export class Client {
 			tab?.on('console', msg => console.log('PAGE LOG:', msg.text()));
 		}
 
-		const shim = fs.readFileSync('./src/hypermapShim.js', 'utf8');
+		const shim = fs.readFileSync(new URL('hypermapShim.js', import.meta.url), 'utf8');
 		tab.on('load', async () => {
 			await tab.evaluate(shim);
 		});
@@ -35,6 +35,7 @@ export class Client {
 			await Promise.all([
 				this.waitForNavigation(),
 				this.evaluate((path) => {
+					// eslint-disable-next-line no-undef
 					hypermap.deepGet(path).fetch();
 				}, path)
 			]);
@@ -42,8 +43,9 @@ export class Client {
 
 		tab.set = async function (key, value) {
 			this.evaluate((key, value) => {
+				// eslint-disable-next-line no-undef
 				hypermap.set(key, value);
-			});
+			}, key, value);
 		};
 
 		return tab;

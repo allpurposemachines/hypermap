@@ -17,8 +17,8 @@ export class Hypermap extends EventTarget {
 
 	static fromJSON(object) {
 		const entries = Object.entries(object);
-		const attributes = entries.find(([key, _value]) => key === "@")?.at(1) || {};
-		const data = entries.filter(([key, _value]) => key !== "@");
+		const attributes = entries.find(([key]) => key === "@")?.at(1) || {};
+		const data = entries.filter(([key]) => key !== "@");
 
 		const hypermap = new Hypermap(data, Object.entries(attributes));
 		hypermap.forEach(async (value, key) => {
@@ -40,6 +40,7 @@ export class Hypermap extends EventTarget {
 		throw new Error('Not implemented');
 	}
 
+	// eslint-disable-next-line no-unused-vars
 	deepFetch(path) {
 		throw new Error('Not implemented');
 	}
@@ -73,7 +74,7 @@ export class Hypermap extends EventTarget {
 			}
 		});
 		return currentNode;
-	};
+	}
 
 	// Modifiers
 	// TODO: this only changes it client-side
