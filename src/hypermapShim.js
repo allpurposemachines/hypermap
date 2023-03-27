@@ -89,9 +89,11 @@ class Hypermap extends EventTarget {
 	}
 
 	deepSet(path, value) {
-		if (path.length > 0) {
+		if (Array.isArray(path) && path.length > 0) {
 			const key = path.pop();
 			this.deepGet(path).set(key, value);
+		} else {
+			this.set(path, value);
 		}
 	}
 
@@ -99,9 +101,10 @@ class Hypermap extends EventTarget {
 		return this.map.has(key);
 	}
 
-	set(key, val) {
-		this.map.set(key, val);
-		this.dispatchEvent(new Event('changed'));
+	set(key, value) {
+		this.map.set(key, value);
+		const event = new CustomEvent('changed', { detail: { key, value } });
+		this.dispatchEvent(event);
 		return this;
 	}
 
