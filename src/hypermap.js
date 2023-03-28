@@ -102,7 +102,9 @@ export class Hypermap extends EventTarget {
 	// Conversions
 	toJSON() {
 		const obj = Object.fromEntries(this.map);
-		obj['@'] = Object.fromEntries(this.attributes);
+		if (this.attributes.size > 0) {
+			obj['@'] = Object.fromEntries(this.attributes);
+		}
 		return obj;
 	}
 
