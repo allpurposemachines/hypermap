@@ -14,7 +14,7 @@ class Hypermap extends EventTarget {
 		this.attributes = new Map(attributes);
 	}
 
-	static async fromJSON(object) {
+	static async fromJSON(object, scripts, transcludedNodes) {
 		const entries = Object.entries(object);
 		const attributes = entries.find(([key]) => key === "@")?.at(1) || {};
 		const data = entries.filter(([key]) => key !== "@");
@@ -32,16 +32,15 @@ class Hypermap extends EventTarget {
 			}
 		});
 
+		// Push transcluded nodes to a list to load later
 		if (hypermap.attributes.has('rels') && hypermap.attributes.get('rels').includes('transclude')) {
-			const response = await fetch(hypermap.attributes.get('href'));
-			const json = await response.json();
-			hypermap = await this.fromJSON(json);
+			transcludedNodes.push(hypermap);
 		}
 		
 		// Push script URLs to a queue to load later
 		if (hypermap.attributes?.has('script')) {
 			const url = new URL(hypermap.attributes.get('script'), window.location.href);
-			globalThis.scriptQueue.push(url);
+			scripts.push(url);
 		}
 		return hypermap;
 	}
@@ -153,20 +152,29 @@ class Hypermap extends EventTarget {
 	}
 }
 
-globalThis.scriptQueue = [];
+let scripts = [];
+let transcludedNodes = [];
+
 const serializedHypermap = document.body.querySelector('pre').innerHTML;
 const jsonHypermap = JSON.parse(serializedHypermap);
 
-Hypermap.fromJSON(jsonHypermap).then(hypermap => {
+Hypermap.fromJSON(jsonHypermap, scripts, transcludedNodes).then(hypermap => {
 	globalThis.hypermap = hypermap;
 
-	globalThis.scriptQueue.map(async url => {
+	scripts.forEach(async url => {
 		try {
 			await import(url);
 		} catch(err) {
 			console.log(`Error importing script at ${url}`, err.message);
 		}
 	});
+
+	transcludedNodes.forEach(async node => {
+		const response = await fetch(node.attributes.get('href'));
+		const json = await response.json();
+		const newNode = await Hypermap.fromJSON(json, [], []);
+		globalThis.hypermap = newNode;
+	})
 
 	globalThis.serializedHypermap = () => {
 		return JSON.parse(JSON.stringify(globalThis.hypermap));
