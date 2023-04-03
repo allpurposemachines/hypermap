@@ -59,5 +59,12 @@ test('Given a client with a tab', async (t) => {
 		assert.equal(hypermap.get('output'), 1);
 	});
 
+	await t.test('Load a document with transclusions', async () => {
+		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
+		
+		const hypermap = await tab.data();
+		assert.equal(hypermap.get('completed'), 0);
+	});
+
 	await client.close();
 });

@@ -14,23 +14,29 @@ class Hypermap extends EventTarget {
 		this.attributes = new Map(attributes);
 	}
 
-	static fromJSON(object) {
+	static async fromJSON(object) {
 		const entries = Object.entries(object);
 		const attributes = entries.find(([key]) => key === "@")?.at(1) || {};
 		const data = entries.filter(([key]) => key !== "@");
 
-		const hypermap = new Hypermap(data, Object.entries(attributes));
-		hypermap.forEach((value, key) => {
+		let hypermap = new Hypermap(data, Object.entries(attributes));
+		hypermap.forEach(async (value, key) => {
 			if (isMap(value)) {
-				hypermap.set(key, this.fromJSON(value));
+				hypermap.set(key, await this.fromJSON(value));
 			} else if (Array.isArray(value)) {
-				value.map((item, index) => {
+				value.map(async (item, index) => {
 					if (isMap(item)) {
-						value[index] = this.fromJSON(item);
+						value[index] = await this.fromJSON(item);
 					}
 				});
 			}
 		});
+
+		if (hypermap.attributes.has('rels') && hypermap.attributes.get('rels').includes('transclude')) {
+			const response = await fetch(hypermap.attributes.get('href'));
+			const json = await response.json();
+			hypermap = await this.fromJSON(json);
+		}
 		
 		// Push script URLs to a queue to load later
 		if (hypermap.attributes?.has('script')) {
@@ -150,15 +156,19 @@ class Hypermap extends EventTarget {
 globalThis.scriptQueue = [];
 const serializedHypermap = document.body.querySelector('pre').innerHTML;
 const jsonHypermap = JSON.parse(serializedHypermap);
-globalThis.hypermap = Hypermap.fromJSON(jsonHypermap)
-globalThis.scriptQueue.map(async url => {
-	try {
-		await import(url);
-	} catch(err) {
-		console.log(`Error importing script at ${url}`, err.message);
-	}
-});
 
-globalThis.serializedHypermap = () => {
-  return JSON.parse(JSON.stringify(globalThis.hypermap));
-};
+Hypermap.fromJSON(jsonHypermap).then(hypermap => {
+	globalThis.hypermap = hypermap;
+
+	globalThis.scriptQueue.map(async url => {
+		try {
+			await import(url);
+		} catch(err) {
+			console.log(`Error importing script at ${url}`, err.message);
+		}
+	});
+
+	globalThis.serializedHypermap = () => {
+		return JSON.parse(JSON.stringify(globalThis.hypermap));
+	};
+});

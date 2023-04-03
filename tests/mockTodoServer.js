@@ -29,7 +29,14 @@ const scriptMap = {
 	'@': {
 		script: '/fooScript.js'
 	}
-}
+};
+
+const transclude = {
+	'@': {
+		href: '/',
+		rels: ['transclude']
+	}
+};
 
 const mockTodoServer = (baseUrl) => ({
 	handleRequest: request => {
@@ -73,6 +80,8 @@ const mockTodoServer = (baseUrl) => ({
 					body: fs.readFileSync('./tests/mock_assets/fooScript.js', 'utf8')
 				});
 				break;
+			case baseUrl + 'transclude/':
+				request.respond(partialResponse(transclude));
 		}
 	}
 });
