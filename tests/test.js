@@ -4,12 +4,15 @@ import { Client } from '../src/main.js';
 import mockTodoServer from './mockTodoServer.js';
 
 const baseUrl = 'http://localhost/';
-const handleRequest = mockTodoServer(baseUrl).handleRequest;
+const mockServer = mockTodoServer(baseUrl);
+const handleRequest = mockServer.handleRequest;
 
 test('Given a client with a tab', async (t) => {
 	const client = await Client.launch();
 	const tab = await client.newTab({debug: true});
 	tab.on('request', request => handleRequest(request));
+
+	t.afterEach(() => mockServer.reset());
 
 	await t.test('Direct navigation', async () => {
 		await tab.goto(baseUrl, { waitUntil: 'networkidle0' });
@@ -61,9 +64,19 @@ test('Given a client with a tab', async (t) => {
 
 	await t.test('Load a document with transclusions', async () => {
 		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
-		
+
 		const hypermap = await tab.data();
-		assert.equal(hypermap.get('completed'), 0);
+		assert.equal(hypermap.deepGet(['todos', 'completed']), 0);
+	});
+
+	await t.test('Fetching a transcluded node', async () => {
+		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
+		let hypermap = await tab.data();
+		assert.equal(hypermap.deepGet(['counter', 'count']), 0);
+
+		await tab.fetch(['counter']);
+		hypermap = await tab.data();
+		assert.equal(hypermap.deepGet(['counter', 'count']), 1);
 	});
 
 	await client.close();

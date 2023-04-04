@@ -22,18 +22,18 @@ class Hypermap extends EventTarget {
 		let hypermap = new Hypermap(data, Object.entries(attributes));
 		hypermap.forEach(async (value, key) => {
 			if (isMap(value)) {
-				hypermap.set(key, await this.fromJSON(value));
+				hypermap.set(key, await this.fromJSON(value, scripts, transcludedNodes));
 			} else if (Array.isArray(value)) {
 				value.map(async (item, index) => {
 					if (isMap(item)) {
-						value[index] = await this.fromJSON(item);
+						value[index] = await this.fromJSON(item, scripts, transcludedNodes);
 					}
 				});
 			}
 		});
 
 		// Push transcluded nodes to a list to load later
-		if (hypermap.attributes.has('rels') && hypermap.attributes.get('rels').includes('transclude')) {
+		if (hypermap.isTransclusion()) {
 			transcludedNodes.push(hypermap);
 		}
 		
@@ -50,7 +50,11 @@ class Hypermap extends EventTarget {
 		const url = new URL(this.attributes?.get('href'), window.location);
 
 		if (method === 'get') {
-			window.location.assign(url);
+			if (this.isTransclusion()) {
+				await this.fetchTransclusion();
+			} else {
+				window.location.assign(url);
+			}
 			return;
 		}
 
@@ -121,6 +125,23 @@ class Hypermap extends EventTarget {
 			return this.map.keys();
 	}
 
+	replace(otherHypermap) {
+		this.map = otherHypermap.map;
+		return this;
+	}
+
+	async fetchTransclusion() {
+		const response = await fetch(this.attributes.get('href'));
+		const json = await response.json();
+		// Todo: should handle scripts and sub-transclusions
+		const newNode = await Hypermap.fromJSON(json, [], []);
+		this.replace(newNode);
+	}
+
+	isTransclusion() {
+		return this.attributes.has('rels') && this.attributes.get('rels').includes('transclude');
+	}
+
 	toDom(parentNode) {
 		const hypermapNode = document.createElement('div');
 		hypermapNode.className = 'hypermap';
@@ -170,13 +191,11 @@ Hypermap.fromJSON(jsonHypermap, scripts, transcludedNodes).then(hypermap => {
 	});
 
 	transcludedNodes.forEach(async node => {
-		const response = await fetch(node.attributes.get('href'));
-		const json = await response.json();
-		const newNode = await Hypermap.fromJSON(json, [], []);
-		globalThis.hypermap = newNode;
-	})
+		await node.fetchTransclusion();
+	});
 
 	globalThis.serializedHypermap = () => {
+		// TODO: toJSON() doens't work with tab data... why?
 		return JSON.parse(JSON.stringify(globalThis.hypermap));
 	};
 });

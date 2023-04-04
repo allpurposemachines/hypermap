@@ -76,6 +76,10 @@ export class Hypermap extends EventTarget {
 		return currentNode;
 	}
 
+	isTransclusion() {
+		return this.attributes.has('rels') && this.attributes.get('rels').includes('transclude');
+	}
+
 	// Modifiers
 	// TODO: this only changes it client-side
 	async set(key, val) {

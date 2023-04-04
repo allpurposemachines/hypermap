@@ -32,13 +32,27 @@ const scriptMap = {
 };
 
 const transclude = {
-	'@': {
-		href: '/',
-		rels: ['transclude']
+	todos: {
+		'@': {
+			href: '/',
+			rels: ['transclude']
+		}
+	},
+	counter: {
+		'@': {
+			href: '/counter/',
+			rels: ['transclude']
+		}
 	}
 };
 
+let counter;
+
 const mockTodoServer = (baseUrl) => ({
+	reset: () => {
+		counter = { count: 0 };
+	},
+
 	handleRequest: request => {
 		const partialResponse = body => ({
 			status: 200,
@@ -82,6 +96,13 @@ const mockTodoServer = (baseUrl) => ({
 				break;
 			case baseUrl + 'transclude/':
 				request.respond(partialResponse(transclude));
+				break;
+			case baseUrl + 'counter/':
+				request.respond(partialResponse(counter));
+				counter = { count: counter.count + 1 };
+				break;
+			default:
+				throw new Error('No route defined');
 		}
 	}
 });

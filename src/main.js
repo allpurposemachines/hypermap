@@ -32,13 +32,21 @@ export class Client {
 		}
 
 		tab.fetch = async function (path) {
-			await Promise.all([
-				this.waitForNavigation(),
-				this.evaluate((path) => {
+			const node = (await this.data()).deepGet(path);
+			if (node.isTransclusion()) {
+				await this.evaluate(async path => {
 					// eslint-disable-next-line no-undef
-					hypermap.deepGet(path).fetch();
-				}, path)
-			]);
+					await hypermap.deepGet(path).fetch();
+				}, path);
+			} else {
+				await Promise.all([
+					this.waitForNavigation(),
+					this.evaluate(path => {
+						// eslint-disable-next-line no-undef
+						hypermap.deepGet(path).fetch();
+					}, path)
+				]);
+			}
 		};
 
 		// TODO: add test
