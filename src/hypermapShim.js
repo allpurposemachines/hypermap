@@ -143,28 +143,6 @@ class Hypermap extends EventTarget {
 		return this.attributes.has('rels') && this.attributes.get('rels').includes('transclude');
 	}
 
-	toDom(parentNode) {
-		const hypermapNode = document.createElement('div');
-		hypermapNode.className = 'hypermap';
-		parentNode.appendChild(hypermapNode);
-
-		this.forEach((value, key) => {
-			if (isMap(value)) {
-				console.log("Handling ", key, value, (value.constructor.name));
-				value.toDom(hypermapNode);
-			} else if (Array.isArray(value)) {
-				console.log("Handle array…");
-			} else {
-				const div = document.createElement('div');
-				div.id = key;
-				div.className = 'foo';
-				console.log(value);
-				div.innerHTML = value.toString();
-				hypermapNode.appendChild(div);
-			}
-		});
-	}
-
 	toJSON() {
 		const obj = Object.fromEntries(this.map);
 		if (this.attributes.size > 0) {

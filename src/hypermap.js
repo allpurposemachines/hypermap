@@ -88,21 +88,6 @@ export class Hypermap extends EventTarget {
 		return this;
 	}
 
-	// setWithoutEvent(key, val) {
-	// 	this.map.set(key, val);
-	// 	tab?.synchronizeSate();
-	// 	return this;
-	// }
-
-	// deepSet(path, value) {
-	// 	if (path.length > 0) {
-	// 		const key = path.pop();
-	// 		this.deepGet(path).set(key, value);
-	// 	}
-	// 	tab?.synchronizeSate();
-	// 	return this;
-	// };
-
 	// Conversions
 	toJSON() {
 		const obj = Object.fromEntries(this.map);

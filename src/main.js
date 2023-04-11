@@ -53,25 +53,12 @@ export class Client {
 			}
 		};
 
-		// TODO: add test
 		tab.set = async function (key, value) {
 			this.evaluate((key, value) => {
 				// eslint-disable-next-line no-undef
 				hypermap.deepSet(key, value);
 			}, key, value);
 		};
-
-		tab.waitForKey = async function (key) {
-			await tab.waitForFunction(
-				() => {
-					// while (!hypermap.has(key)) {}
-					// return;
-					// setTimeout()
-				},
-				{ polling: 100 },
-				key
-			);
-		}
 
 		return tab;
 	}
