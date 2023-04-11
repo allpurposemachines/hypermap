@@ -19,6 +19,10 @@ export class Client {
 			tab?.on('console', msg => console.log('PAGE LOG:', msg.text()));
 		}
 
+		await tab.exposeFunction('contentChanged', () => {
+			tab.emit('contentchanged');
+		});
+
 		const shim = fs.readFileSync(new URL('hypermapShim.js', import.meta.url), 'utf8');
 		tab.on('load', async () => {
 			await tab.evaluate(shim);

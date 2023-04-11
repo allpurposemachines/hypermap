@@ -114,6 +114,7 @@ class Hypermap extends EventTarget {
 		this.map.set(key, value);
 		const event = new CustomEvent('changed', { detail: { key, value } });
 		this.dispatchEvent(event);
+		window.contentChanged();
 		return this;
 	}
 
