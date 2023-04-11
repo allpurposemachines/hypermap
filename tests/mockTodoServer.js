@@ -71,12 +71,13 @@ const mockTodoServer = (baseUrl) => ({
 				if (request.method() === 'GET') {
 					request.respond(partialResponse(index));
 				} else if (request.method() === 'POST') {
+					const { title } = JSON.parse(request.postData());
 					index.todos.push({
 						'@': {
 							href: '2/'
 						},
-						title: 'Buy cheese',
-						completed: false
+						completed: false,
+						title
 					});
 					request.respond(partialPostReponse);
 				}

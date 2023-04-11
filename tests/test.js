@@ -40,11 +40,13 @@ test('Given a client with a tab', async (t) => {
 	
 	await t.test('Use a control', async () => {	
 		await tab.goto(baseUrl);
-		await tab.set('title', 'Buy cheese');
+		const newTitle = 'Buy cheese';
+		await tab.set(['newTodo', 'title'], newTitle);
 		await tab.fetch(['newTodo']);
 		
 		const hypermap = await tab.data();
 		assert.equal(hypermap.get('todos').length, 2);
+		assert.equal(hypermap.deepGet(['todos', 1, 'title']), newTitle);
 	});
 	
 	await t.test('Load a script', async () => {
