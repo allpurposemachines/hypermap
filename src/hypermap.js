@@ -1,13 +1,8 @@
-const isMap = (value) => {
-	return typeof value === 'object' &&
-	value !== null &&
-	!Array.isArray(value)
-};
+import { isMap } from './utils/json_processing.js';
 
 export class Hypermap extends EventTarget {
 	attributes;
 	map;
-	tab;
 
 	constructor(data, attributes) {
 		super();
@@ -33,16 +28,6 @@ export class Hypermap extends EventTarget {
 			}
 		});
 		return hypermap;
-	}
-
-	// State changes
-	fetch() {
-		throw new Error('Not implemented');
-	}
-
-	// eslint-disable-next-line no-unused-vars
-	deepFetch(path) {
-		throw new Error('Not implemented');
 	}
 
 	// Accessors

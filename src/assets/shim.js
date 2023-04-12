@@ -1,8 +1,4 @@
-const isMap = (value) => {
-	return typeof value === 'object' &&
-	value !== null &&
-	!Array.isArray(value)
-};
+import { isMap } from '../utils/json_processing.js';
 
 class Hypermap extends EventTarget {
 	attributes;

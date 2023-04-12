@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'assert';
-import { Client } from '../src/main.js';
+import { Client } from '../wrapper.js';
 import mockTodoServer from './mockTodoServer.js';
 
 const baseUrl = 'http://localhost/';

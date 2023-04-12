@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer';
 import * as fs from 'fs';
-import { Hypermap } from './hypermap.js';
+import { Hypermap } from './Hypermap.js';
 
 export class Client {
 	browser;
@@ -23,7 +23,7 @@ export class Client {
 			tab.emit('contentchanged');
 		});
 
-		const shim = fs.readFileSync(new URL('hypermapShim.js', import.meta.url), 'utf8');
+		const shim = fs.readFileSync(new URL('assets/shim.js', import.meta.url), 'utf8');
 		tab.on('load', async () => {
 			await tab.evaluate(shim);
 		});
