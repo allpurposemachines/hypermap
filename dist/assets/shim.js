@@ -4,7 +4,7 @@
     return typeof value === "object" && value !== null && !Array.isArray(value);
   };
 
-  // src/assets/shim.js
+  // src/Hypermap.js
   var Hypermap = class extends EventTarget {
     attributes;
     map;
@@ -13,18 +13,18 @@
       this.map = new Map(data);
       this.attributes = new Map(attributes);
     }
-    static async fromJSON(object, scripts2, transcludedNodes2) {
+    static fromJSON(object, scripts2 = [], transcludedNodes2 = []) {
       const entries = Object.entries(object);
       const attributes = entries.find(([key]) => key === "@")?.at(1) || {};
       const data = entries.filter(([key]) => key !== "@");
-      let hypermap = new Hypermap(data, Object.entries(attributes));
-      hypermap.forEach(async (value, key) => {
+      let hypermap = new this(data, Object.entries(attributes));
+      hypermap.forEach((value, key) => {
         if (isMap(value)) {
-          hypermap.set(key, await this.fromJSON(value, scripts2, transcludedNodes2));
+          hypermap.set(key, this.fromJSON(value, scripts2, transcludedNodes2));
         } else if (Array.isArray(value)) {
-          value.map(async (item, index) => {
+          value.map((item, index) => {
             if (isMap(item)) {
-              value[index] = await this.fromJSON(item, scripts2, transcludedNodes2);
+              value[index] = this.fromJSON(item, scripts2, transcludedNodes2);
             }
           });
         }
@@ -32,12 +32,13 @@
       if (hypermap.isTransclusion()) {
         transcludedNodes2.push(hypermap);
       }
-      if (hypermap.attributes?.has("script")) {
+      if (hypermap.attributes?.has("script") && typeof window !== "undefined") {
         const url = new URL(hypermap.attributes.get("script"), window.location.href);
         scripts2.push(url);
       }
       return hypermap;
     }
+    // Todo: make isomorphic
     async fetch() {
       const method = this.attributes?.get("method") || "get";
       const url = new URL(this.attributes?.get("href"), window.location);
@@ -80,6 +81,7 @@
       });
       return currentNode;
     }
+    // Todo: this should forward to tab when running as client
     deepSet(path, value) {
       if (Array.isArray(path) && path.length > 0) {
         const key = path.pop();
@@ -91,15 +93,17 @@
     has(key) {
       return this.map.has(key);
     }
+    // Todo: this should forward to tab when running as client
     set(key, value) {
       this.map.set(key, value);
-      const event = new CustomEvent("changed", { detail: { key, value } });
-      this.dispatchEvent(event);
-      window.contentChanged();
+      if (typeof CustomEvent !== "undefined") {
+        const event = new CustomEvent("changed", { detail: { key, value } });
+        this.dispatchEvent(event);
+      }
+      if (typeof window !== "undefined") {
+        window.contentChanged();
+      }
       return this;
-    }
-    setWithoutEvent(key, val) {
-      this.map.set(key, val);
     }
     keys() {
       return this.map.keys();
@@ -108,6 +112,7 @@
       this.map = otherHypermap.map;
       return this;
     }
+    // Todo: make isomorphic
     async fetchTransclusion() {
       const response = await fetch(this.attributes.get("href"));
       const json = await response.json();
@@ -124,25 +129,28 @@
       }
       return obj;
     }
+    toString() {
+      JSON.stringify(this.toJSON(), null, 2);
+    }
   };
+
+  // src/assets/shim.js
   var scripts = [];
   var transcludedNodes = [];
   var serializedHypermap = document.body.querySelector("pre").innerHTML;
   var jsonHypermap = JSON.parse(serializedHypermap);
-  Hypermap.fromJSON(jsonHypermap, scripts, transcludedNodes).then((hypermap) => {
-    globalThis.hypermap = hypermap;
-    scripts.forEach(async (url) => {
-      try {
-        await import(url);
-      } catch (err) {
-        console.log(`Error importing script at ${url}`, err.message);
-      }
-    });
-    transcludedNodes.forEach(async (node) => {
-      await node.fetchTransclusion();
-    });
-    globalThis.serializedHypermap = () => {
-      return JSON.parse(JSON.stringify(globalThis.hypermap));
-    };
+  globalThis.hypermap = Hypermap.fromJSON(jsonHypermap, scripts, transcludedNodes);
+  scripts.forEach(async (url) => {
+    try {
+      await import(url);
+    } catch (err) {
+      console.log(`Error importing script at ${url}`, err.message);
+    }
   });
+  transcludedNodes.forEach(async (node) => {
+    await node.fetchTransclusion();
+  });
+  globalThis.serializedHypermap = () => {
+    return JSON.parse(JSON.stringify(globalThis.hypermap));
+  };
 })();

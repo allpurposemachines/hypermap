@@ -8,7 +8,7 @@ Object.defineProperty(exports, "Client", {
 });
 const _puppeteer = /*#__PURE__*/ _interop_require_default(require("puppeteer"));
 const _fs = /*#__PURE__*/ _interop_require_wildcard(require("fs"));
-const _Hypermap = require("./Hypermap.js");
+const _Hypermap = /*#__PURE__*/ _interop_require_default(require("./Hypermap.js"));
 function _interop_require_default(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -77,7 +77,7 @@ class Client {
             const hypermapJson = await this.evaluate(()=>{
                 return globalThis.serializedHypermap();
             });
-            return _Hypermap.Hypermap.fromJSON(hypermapJson);
+            return _Hypermap.default.fromJSON(hypermapJson);
         };
         tab.fetch = async function(path) {
             const node = (await this.data()).deepGet(path);

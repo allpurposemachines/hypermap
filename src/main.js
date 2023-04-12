@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer';
 import * as fs from 'fs';
-import { Hypermap } from './Hypermap.js';
+import Hypermap from './Hypermap.js';
 
 export class Client {
 	browser;
