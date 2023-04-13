@@ -16,8 +16,7 @@ class Hypermap extends EventTarget {
         this.attributes = new Map(attributes);
     }
     static fromJSON(object, scripts = [], transcludedNodes = []) {
-        const entries = Object.entries(object);
-        const attributes = entries.find(([key])=>key === "@")?.at(1) || [];
+        const attributes = object['@'] || {};
         delete object['@'];
         let hypermap = new this(object, Object.entries(attributes));
         hypermap.forEach((value, key)=>{
