@@ -28,11 +28,11 @@
           });
         }
       });
-      if (hypermap.isTransclusion()) {
+      if (attributes.rels?.includes("transclude")) {
         transcludedNodes2.push(hypermap);
       }
-      if (hypermap.attributes.script && typeof window !== "undefined") {
-        const url = new URL(hypermap.attributes.script, window.location.href);
+      if (attributes.script && typeof window !== "undefined") {
+        const url = new URL(attributes.script, window.location.href);
         scripts2.push(url);
       }
       return hypermap;
@@ -42,7 +42,7 @@
       const method = this.attributes.method || "get";
       const url = new URL(this.attributes.href, window.location);
       if (method === "get") {
-        if (this.isTransclusion()) {
+        if (this.attributes.rels?.includes("transclude")) {
           await this.fetchTransclusion();
         } else {
           window.location.assign(url);
@@ -117,9 +117,6 @@
       const json = await response.json();
       const newNode = await Hypermap.fromJSON(json, [], []);
       this.replace(newNode);
-    }
-    isTransclusion() {
-      return this.attributes.rels?.includes("transclude");
     }
     toJSON() {
       const obj = Object.fromEntries(this.map);

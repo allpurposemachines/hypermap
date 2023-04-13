@@ -37,7 +37,7 @@ export class Client {
 
 		tab.fetch = async function (path) {
 			const node = (await this.data()).deepGet(path);
-			if (node.isTransclusion()) {
+			if (node.attributes.rels?.includes('transclude')) {
 				await this.evaluate(async path => {
 					// eslint-disable-next-line no-undef
 					await hypermap.deepGet(path).fetch();

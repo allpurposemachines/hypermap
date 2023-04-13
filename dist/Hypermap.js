@@ -31,12 +31,12 @@ class Hypermap extends EventTarget {
             }
         });
         // Push transcluded nodes to a list to load later
-        if (hypermap.isTransclusion()) {
+        if (attributes.rels?.includes('transclude')) {
             transcludedNodes.push(hypermap);
         }
         // Push script URLs to a queue to load later
-        if (hypermap.attributes.script && typeof window !== 'undefined') {
-            const url = new URL(hypermap.attributes.script, window.location.href);
+        if (attributes.script && typeof window !== 'undefined') {
+            const url = new URL(attributes.script, window.location.href);
             scripts.push(url);
         }
         return hypermap;
@@ -46,7 +46,7 @@ class Hypermap extends EventTarget {
         const method = this.attributes.method || 'get';
         const url = new URL(this.attributes.href, window.location);
         if (method === 'get') {
-            if (this.isTransclusion()) {
+            if (this.attributes.rels?.includes('transclude')) {
                 await this.fetchTransclusion();
             } else {
                 window.location.assign(url);
@@ -132,9 +132,6 @@ class Hypermap extends EventTarget {
         // Todo: should handle scripts and sub-transclusions
         const newNode = await Hypermap.fromJSON(json, [], []);
         this.replace(newNode);
-    }
-    isTransclusion() {
-        return this.attributes.rels?.includes('transclude');
     }
     toJSON() {
         const obj = Object.fromEntries(this.map);
