@@ -11,12 +11,12 @@
     constructor(data, attributes) {
       super();
       this.map = new Map(Object.entries(data));
-      this.attributes = new Map(attributes);
+      this.attributes = attributes;
     }
     static fromJSON(object, scripts2 = [], transcludedNodes2 = []) {
       const attributes = object["@"] || {};
       delete object["@"];
-      let hypermap = new this(object, Object.entries(attributes));
+      let hypermap = new this(object, attributes);
       hypermap.forEach((value, key) => {
         if (isMap(value)) {
           hypermap.set(key, this.fromJSON(value, scripts2, transcludedNodes2));
@@ -31,16 +31,16 @@
       if (hypermap.isTransclusion()) {
         transcludedNodes2.push(hypermap);
       }
-      if (hypermap.attributes?.has("script") && typeof window !== "undefined") {
-        const url = new URL(hypermap.attributes.get("script"), window.location.href);
+      if (hypermap.attributes.script && typeof window !== "undefined") {
+        const url = new URL(hypermap.attributes.script, window.location.href);
         scripts2.push(url);
       }
       return hypermap;
     }
     // Todo: make isomorphic
     async fetch() {
-      const method = this.attributes?.get("method") || "get";
-      const url = new URL(this.attributes?.get("href"), window.location);
+      const method = this.attributes.method || "get";
+      const url = new URL(this.attributes.href, window.location);
       if (method === "get") {
         if (this.isTransclusion()) {
           await this.fetchTransclusion();
@@ -113,18 +113,18 @@
     }
     // Todo: make isomorphic
     async fetchTransclusion() {
-      const response = await fetch(this.attributes.get("href"));
+      const response = await fetch(this.attributes.href);
       const json = await response.json();
       const newNode = await Hypermap.fromJSON(json, [], []);
       this.replace(newNode);
     }
     isTransclusion() {
-      return this.attributes.has("rels") && this.attributes.get("rels").includes("transclude");
+      return this.attributes.rels?.includes("transclude");
     }
     toJSON() {
       const obj = Object.fromEntries(this.map);
-      if (this.attributes.size > 0) {
-        obj["@"] = Object.fromEntries(this.attributes);
+      if (Object.entries(this.attributes).length > 0) {
+        obj["@"] = this.attributes;
       }
       return obj;
     }
