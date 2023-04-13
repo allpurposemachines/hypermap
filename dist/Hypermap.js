@@ -12,14 +12,14 @@ class Hypermap extends EventTarget {
     map;
     constructor(data, attributes){
         super();
-        this.map = new Map(data);
+        this.map = new Map(Object.entries(data));
         this.attributes = new Map(attributes);
     }
     static fromJSON(object, scripts = [], transcludedNodes = []) {
         const entries = Object.entries(object);
-        const attributes = entries.find(([key])=>key === "@")?.at(1) || {};
-        const data = entries.filter(([key])=>key !== "@");
-        let hypermap = new this(data, Object.entries(attributes));
+        const attributes = entries.find(([key])=>key === "@")?.at(1) || [];
+        delete object['@'];
+        let hypermap = new this(object, Object.entries(attributes));
         hypermap.forEach((value, key)=>{
             if ((0, _json_processing.isMap)(value)) {
                 hypermap.set(key, this.fromJSON(value, scripts, transcludedNodes));
