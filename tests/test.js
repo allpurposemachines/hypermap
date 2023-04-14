@@ -24,9 +24,10 @@ test('Given a client with a tab', async (t) => {
 		await tab.goto(baseUrl);
 
 		const hypermap = await tab.data();
-		assert.equal(hypermap.get('completed'), 0);
-		assert.equal(hypermap.get('todos').length, 1);
+		assert.equal(hypermap.at('completed'), 0);
+		assert.equal(hypermap.at('todos').length, 1);
 		assert.equal(hypermap.has('newTodo'), true);
+		assert.equal(hypermap.at('completed', 'badPath'), undefined);
 	});
 	
 	await t.test('Follow a link', async () => {	
@@ -45,15 +46,15 @@ test('Given a client with a tab', async (t) => {
 		await tab.fetch(['newTodo']);
 		
 		const hypermap = await tab.data();
-		assert.equal(hypermap.get('todos').length, 2);
-		assert.equal(hypermap.deepGet(['todos', 1, 'title']), newTitle);
+		assert.equal(hypermap.at('todos').length, 2);
+		assert.equal(hypermap.at('todos', 1).at('title'), newTitle);
 	});
 	
 	await t.test('Load a script', async () => {
 		await tab.goto(baseUrl + 'scriptTest/', { waitUntil: 'networkidle0' });
 		
 		const hypermap = await tab.data();
-		assert.equal(hypermap.get('foo'), 'bar');
+		assert.equal(hypermap.at('foo'), 'bar');
 	});
 
 	await t.test('Handle an event (script to script)', async () => {
@@ -61,24 +62,24 @@ test('Given a client with a tab', async (t) => {
 		await tab.set('input', 'test');
 
 		const hypermap = await tab.data();
-		assert.equal(hypermap.get('output'), 1);
+		assert.equal(hypermap.at('output'), 1);
 	});
 
 	await t.test('Load a document with transclusions', async () => {
 		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
 
 		const hypermap = await tab.data();
-		assert.equal(hypermap.deepGet(['todos', 'completed']), 0);
+		assert.equal(hypermap.at('todos', 'completed'), 0);
 	});
 
 	await t.test('Fetching a transcluded node', async () => {
 		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
 		let hypermap = await tab.data();
-		assert.equal(hypermap.deepGet(['counter', 'count']), 0);
+		assert.equal(hypermap.at('counter', 'count'), 0);
 
 		await tab.fetch(['counter']);
 		hypermap = await tab.data();
-		assert.equal(hypermap.deepGet(['counter', 'count']), 1);
+		assert.equal(hypermap.at('counter', 'count'), 1);
 	});
 
 	await client.close();

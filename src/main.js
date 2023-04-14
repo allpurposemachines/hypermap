@@ -36,18 +36,18 @@ export class Client {
 		}
 
 		tab.fetch = async function (path) {
-			const node = (await this.data()).deepGet(path);
+			const node = (await this.data()).at(...path);
 			if (node.attributes.rels?.includes('transclude')) {
 				await this.evaluate(async path => {
 					// eslint-disable-next-line no-undef
-					await hypermap.deepGet(path).fetch();
+					await hypermap.at(...path).fetch();
 				}, path);
 			} else {
 				await Promise.all([
 					this.waitForNavigation(),
 					this.evaluate(path => {
 						// eslint-disable-next-line no-undef
-						hypermap.deepGet(path).fetch();
+						hypermap.at(...path).fetch();
 					}, path)
 				]);
 			}

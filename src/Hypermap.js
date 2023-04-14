@@ -75,29 +75,28 @@ export default class Hypermap extends EventTarget {
 		this.map.forEach(callbackfn);
 	}
 
-	get(key) {
-		return this.map.get(key);
-	}
-
-	deepGet(path) {
-		let currentNode = this;
-		path.forEach(segment => {
-			// Is this valid? Can maps have numerical keys?
-			const index = parseInt(segment);
-			if (!Number.isNaN(index)) {
-				currentNode = currentNode.at(index);
-			} else {
-				currentNode = currentNode.get(segment);
-			}
-		});
-		return currentNode;
+	at(...path) {
+		if (path.length === 0) {
+			return this;
+		}
+		
+		const head = this.map.get(path.at(0));
+		if (head === undefined || (path.length > 1 && typeof head.at !== 'function')) {
+			return undefined;
+		}
+		
+		if (path.length === 1) {
+			return head;
+		} else {
+			return head.at(...path.slice(1));
+		}
 	}
 
 	// Todo: this should forward to tab when running as client
 	deepSet(path, value) {
 		if (Array.isArray(path) && path.length > 0) {
 			const key = path.pop();
-			this.deepGet(path).set(key, value);
+			this.at(...path).set(key, value);
 		} else {
 			this.set(path, value);
 		}
@@ -147,6 +146,6 @@ export default class Hypermap extends EventTarget {
 	}
 
 	toString() {
-		JSON.stringify(this.toJSON(), null, 2);
+		return JSON.stringify(this, null, 2);
 	}
 }
