@@ -5,7 +5,7 @@
 	"type": "module",
 	"exports": {
 		"import": "./wrapper.js",
-		"require": "./cjs/main.js",
+		"require": "./dist/main.js",
 		"default": "./wrapper.js"
 	},
 	"scripts": {
