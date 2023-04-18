@@ -155,3 +155,5 @@ class Hypermap extends EventTarget {
         return JSON.stringify(this, null, 2);
     }
 }
+
+//# sourceMappingURL=Hypermap.js.map

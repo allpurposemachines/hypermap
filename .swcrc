@@ -24,5 +24,6 @@
 	"minify": false,
 	"module": {
     "type": "commonjs"
-  }
+  },
+	"sourceMaps": true
 }

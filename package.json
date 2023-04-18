@@ -10,7 +10,7 @@
 	},
 	"scripts": {
 		"test": "npm run build && node tests/test.js",
-		"build": "rm -r dist && npx swc ./src --ignore ./src/assets/*.js -d ./dist && esbuild ./src/assets/shim.js --bundle --outfile=./dist/assets/shim.js && echo '{}' > ./dist/package.json",
+		"build": "rm -r dist && npx swc ./src --ignore ./src/assets/*.js -d ./dist && rm ./dist/assets/* && esbuild ./src/assets/shim.js --bundle --outfile=./dist/assets/shim.js && echo '{}' > ./dist/package.json",
 		"start": "npm run build -- -w"
 	},
 	"keywords": [],
