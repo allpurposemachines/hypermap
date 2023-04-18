@@ -46,6 +46,14 @@ const transclude = {
 	}
 };
 
+const deep = {
+	one: {
+		two: {
+			three: {}
+		}
+	}
+}
+
 let counter;
 
 const mockTodoServer = (baseUrl) => ({
@@ -81,6 +89,9 @@ const mockTodoServer = (baseUrl) => ({
 					});
 					request.respond(partialPostReponse);
 				}
+				break;
+			case baseUrl + 'deep/':
+				request.respond(partialResponse(deep));
 				break;
 			case baseUrl + '1/':
 				request.respond(partialResponse(first));

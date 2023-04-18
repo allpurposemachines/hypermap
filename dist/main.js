@@ -77,7 +77,7 @@ class Client {
             const hypermapJson = await this.evaluate(()=>{
                 return globalThis.serializedHypermap();
             });
-            return _Hypermap.default.fromJSON(hypermapJson);
+            return _Hypermap.default.fromJSON(hypermapJson, [], [], null, this);
         };
         tab.fetch = async function(path) {
             const node = (await this.data()).at(...path);
@@ -96,11 +96,9 @@ class Client {
                 ]);
             }
         };
-        tab.set = async function(key, value) {
-            this.evaluate((key, value)=>{
-                // eslint-disable-next-line no-undef
-                hypermap.deepSet(key, value);
-            }, key, value);
+        tab.at = async function(...path) {
+            const hypermap1 = await this.data();
+            return hypermap1.at(...path);
         };
         return tab;
     }

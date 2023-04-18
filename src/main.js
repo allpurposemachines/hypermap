@@ -32,7 +32,7 @@ export class Client {
 			const hypermapJson = await this.evaluate(() => {
 				return globalThis.serializedHypermap();
 			});
-			return Hypermap.fromJSON(hypermapJson);
+			return Hypermap.fromJSON(hypermapJson, [], [], null, this);
 		}
 
 		tab.fetch = async function (path) {
@@ -53,12 +53,10 @@ export class Client {
 			}
 		};
 
-		tab.set = async function (key, value) {
-			this.evaluate((key, value) => {
-				// eslint-disable-next-line no-undef
-				hypermap.deepSet(key, value);
-			}, key, value);
-		};
+		tab.at = async function (...path) {
+			const hypermap = await this.data();
+			return hypermap.at(...path);
+		}
 
 		return tab;
 	}

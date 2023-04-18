@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'assert';
+import { execSync } from 'child_process';
 import { Client } from '../wrapper.js';
 import mockTodoServer from './mockTodoServer.js';
 
 const baseUrl = 'http://localhost/';
 const mockServer = mockTodoServer(baseUrl);
 const handleRequest = mockServer.handleRequest;
+
+function delay(time) {
+	return new Promise(resolve => setTimeout(resolve, time));
+};
 
 test('Given a client with a tab', async (t) => {
 	const client = await Client.launch();
@@ -29,8 +34,21 @@ test('Given a client with a tab', async (t) => {
 		assert.equal(hypermap.has('newTodo'), true);
 		assert.equal(hypermap.at('completed', 'badPath'), undefined);
 	});
+
+	await t.test('Navigate the heirarchy', async () => {
+		await tab.goto(baseUrl + 'deep/');
+
+		const hypermap = await tab.data();
+
+		assert.notStrictEqual(hypermap.path(), []);
+		assert.notStrictEqual(hypermap.at('one', 'two', 'three').path(), ['one', 'two', 'three']);
+
+		assert.equal(hypermap.children().length, 1);
+		assert.equal(hypermap.parent(), null);
+		assert.notStrictEqual(hypermap.at('one').parent(), hypermap);
+	});
 	
-	await t.test('Follow a link', async () => {	
+	await t.test('Follow a link', async () => {
 		await tab.goto(baseUrl);
 		await tab.fetch(['todos', 0]);
 		
@@ -39,10 +57,10 @@ test('Given a client with a tab', async (t) => {
 		assert.equal(tab.url(), 'http://localhost/1/');
 	});
 	
-	await t.test('Use a control', async () => {	
+	await t.test('Use a control', async () => {
 		await tab.goto(baseUrl);
 		const newTitle = 'Buy cheese';
-		await tab.set(['newTodo', 'title'], newTitle);
+		(await tab.at('newTodo')).set('title', newTitle);
 		await tab.fetch(['newTodo']);
 		
 		const hypermap = await tab.data();
@@ -59,7 +77,10 @@ test('Given a client with a tab', async (t) => {
 
 	await t.test('Handle an event (script to script)', async () => {
 		await tab.goto(baseUrl + 'scriptTest/', { waitUntil: 'networkidle0' });
-		await tab.set('input', 'test');
+		(await tab.at()).set('input', 'test');
+
+		// Todo: make this more robust
+		await delay(1000);
 
 		const hypermap = await tab.data();
 		assert.equal(hypermap.at('output'), 1);

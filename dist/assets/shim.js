@@ -8,22 +8,26 @@
   var Hypermap = class extends EventTarget {
     attributes;
     map;
-    constructor(data, attributes) {
+    #parent;
+    #tab;
+    constructor(data, attributes, parent, tab = null) {
       super();
       this.map = new Map(Object.entries(data));
       this.attributes = attributes;
+      this.#parent = parent;
+      this.#tab = tab;
     }
-    static fromJSON(object, scripts2 = [], transcludedNodes2 = []) {
+    static fromJSON(object, scripts2 = [], transcludedNodes2 = [], parent = null, tab = null) {
       const attributes = object["@"] || {};
       delete object["@"];
-      let hypermap = new this(object, attributes);
+      let hypermap = new this(object, attributes, parent, tab);
       hypermap.forEach((value, key) => {
         if (isMap(value)) {
-          hypermap.set(key, this.fromJSON(value, scripts2, transcludedNodes2));
+          hypermap.map.set(key, this.fromJSON(value, scripts2, transcludedNodes2, hypermap, tab));
         } else if (Array.isArray(value)) {
           value.map((item, index) => {
             if (isMap(item)) {
-              value[index] = this.fromJSON(item, scripts2, transcludedNodes2);
+              value[index] = this.fromJSON(item, scripts2, transcludedNodes2, hypermap, tab);
             }
           });
         }
@@ -79,29 +83,48 @@
         return head.at(...path.slice(1));
       }
     }
-    // Todo: this should forward to tab when running as client
-    deepSet(path, value) {
-      if (Array.isArray(path) && path.length > 0) {
-        const key = path.pop();
-        this.at(...path).set(key, value);
-      } else {
-        this.set(path, value);
+    parent() {
+      this.parent;
+    }
+    children() {
+      return [...this.map].filter(([_, value]) => isMap(value) || Array.isArray(value)).map(([_, value]) => value);
+    }
+    path() {
+      if (this.#parent !== null && this.#parent?.constructor.name !== "Hypermap") {
+        throw new Error("Not root and parent is not a hypermap");
       }
+      if (this.#parent === null) {
+        return [];
+      } else {
+        return this.#parent.path().concat(this.#parent.keyFor(this));
+      }
+    }
+    keyFor(node) {
+      for (const [key, value] of this.map) {
+        if (value === node) {
+          return key;
+        }
+      }
+      return void 0;
     }
     has(key) {
       return this.map.has(key);
     }
-    // Todo: this should forward to tab when running as client
     set(key, value) {
       this.map.set(key, value);
-      if (typeof CustomEvent !== "undefined") {
+      if (typeof window !== "undefined") {
         const event = new CustomEvent("changed", { detail: { key, value } });
         this.dispatchEvent(event);
-      }
-      if (typeof window !== "undefined") {
         window.contentChanged();
+        return this;
+      } else if (this.#tab) {
+        const path = this.path();
+        this.#tab.evaluate((path2, key2, value2) => {
+          globalThis.hypermap.at(...path2).set(key2, value2);
+        }, path, key, value).then(() => {
+          return this;
+        });
       }
-      return this;
     }
     keys() {
       return this.map.keys();
