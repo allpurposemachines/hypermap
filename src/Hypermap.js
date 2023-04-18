@@ -107,9 +107,6 @@ export default class Hypermap extends EventTarget {
 	}
 	
 	path() {
-		if (this.#parent !== null && this.#parent?.constructor.name !== 'Hypermap') {
-			throw new Error('Not root and parent is not a hypermap');
-		}
 		if (this.#parent === null) {
 			return [];
 		} else {
@@ -119,7 +116,6 @@ export default class Hypermap extends EventTarget {
 
 	keyFor(node) {
 		for (const [key, value] of this.map) {
-			// console.log('LOOKING', value.toString(), node.toString());
 			if (value === node) {
 				return key;
 			}
@@ -133,21 +129,11 @@ export default class Hypermap extends EventTarget {
 	}
 
 	set(key, value) {
-		this.map.set(key, value)
-
-		if (typeof window !== 'undefined') {
-			const event = new CustomEvent('changed', { detail: { key, value } });
-			this.dispatchEvent(event);
-			window.contentChanged();
-			return this;
-		} else if (this.#tab) {
-			const path = this.path();
-			this.#tab.evaluate((path, key, value) => {
-				globalThis.hypermap.at(...path).set(key, value);
-			}, path, key, value).then(() => {
-				return this;
-			});
-		}
+		this.map.set(key, value);
+		const event = new CustomEvent('changed', { detail: { key, value } });
+		this.dispatchEvent(event);
+		window.contentChanged();
+		return this;
 	}
 
 	keys() {

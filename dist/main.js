@@ -96,9 +96,10 @@ class Client {
                 ]);
             }
         };
-        tab.at = async function(...path) {
-            const hypermap1 = await this.data();
-            return hypermap1.at(...path);
+        tab.set = async function(path, value) {
+            await this.evaluate((path, value)=>{
+                globalThis.hypermap.at(...path.slice(0, -1)).set(path.at(-1), value);
+            }, path, value);
         };
         return tab;
     }

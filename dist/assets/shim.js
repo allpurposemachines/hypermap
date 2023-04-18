@@ -90,9 +90,6 @@
       return [...this.map].filter(([_, value]) => isMap(value) || Array.isArray(value)).map(([_, value]) => value);
     }
     path() {
-      if (this.#parent !== null && this.#parent?.constructor.name !== "Hypermap") {
-        throw new Error("Not root and parent is not a hypermap");
-      }
       if (this.#parent === null) {
         return [];
       } else {
@@ -112,19 +109,10 @@
     }
     set(key, value) {
       this.map.set(key, value);
-      if (typeof window !== "undefined") {
-        const event = new CustomEvent("changed", { detail: { key, value } });
-        this.dispatchEvent(event);
-        window.contentChanged();
-        return this;
-      } else if (this.#tab) {
-        const path = this.path();
-        this.#tab.evaluate((path2, key2, value2) => {
-          globalThis.hypermap.at(...path2).set(key2, value2);
-        }, path, key, value).then(() => {
-          return this;
-        });
-      }
+      const event = new CustomEvent("changed", { detail: { key, value } });
+      this.dispatchEvent(event);
+      window.contentChanged();
+      return this;
     }
     keys() {
       return this.map.keys();

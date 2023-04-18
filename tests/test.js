@@ -1,16 +1,11 @@
 import test from 'node:test';
 import assert from 'assert';
-import { execSync } from 'child_process';
 import { Client } from '../wrapper.js';
 import mockTodoServer from './mockTodoServer.js';
 
 const baseUrl = 'http://localhost/';
 const mockServer = mockTodoServer(baseUrl);
 const handleRequest = mockServer.handleRequest;
-
-function delay(time) {
-	return new Promise(resolve => setTimeout(resolve, time));
-};
 
 test('Given a client with a tab', async (t) => {
 	const client = await Client.launch();
@@ -60,7 +55,8 @@ test('Given a client with a tab', async (t) => {
 	await t.test('Use a control', async () => {
 		await tab.goto(baseUrl);
 		const newTitle = 'Buy cheese';
-		(await tab.at('newTodo')).set('title', newTitle);
+		await tab.set(['newTodo', 'title'], newTitle);
+
 		await tab.fetch(['newTodo']);
 		
 		const hypermap = await tab.data();
@@ -77,10 +73,7 @@ test('Given a client with a tab', async (t) => {
 
 	await t.test('Handle an event (script to script)', async () => {
 		await tab.goto(baseUrl + 'scriptTest/', { waitUntil: 'networkidle0' });
-		(await tab.at()).set('input', 'test');
-
-		// Todo: make this more robust
-		await delay(1000);
+		await tab.set(['input'], 'test');
 
 		const hypermap = await tab.data();
 		assert.equal(hypermap.at('output'), 1);
