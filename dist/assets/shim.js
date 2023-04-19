@@ -4,6 +4,51 @@
     return typeof value === "object" && value !== null && !Array.isArray(value);
   };
 
+  // src/Hyperlist.js
+  var Hyperlist = class extends EventTarget {
+    array;
+    #parent;
+    constructor(array, parent) {
+      super();
+      this.array = array;
+      this.#parent = parent;
+    }
+    static fromLiteral(array, parent) {
+      const hyperlist = new this([], parent);
+      const convertedArray = array.map((value) => {
+        if (isMap(value)) {
+          return Hypermap.fromJSON(value, [], [], hyperlist);
+        } else if (Array.isArray(value)) {
+          return Hyperlist.fromLiteral(value, hyperlist);
+        } else {
+          return value;
+        }
+      });
+      hyperlist.array = convertedArray;
+      return hyperlist;
+    }
+    at(...path) {
+      if (path.length === 0) {
+        return this;
+      }
+      const head = this.array.at(path.at(0));
+      if (head === void 0 || path.length > 1 && typeof head.at !== "function") {
+        return void 0;
+      }
+      if (path.length === 1) {
+        return head;
+      } else {
+        return head.at(...path.slice(1));
+      }
+    }
+    length() {
+      return this.array.length;
+    }
+    toJSON() {
+      return this.array;
+    }
+  };
+
   // src/Hypermap.js
   var Hypermap = class extends EventTarget {
     attributes;
@@ -25,11 +70,7 @@
         if (isMap(value)) {
           hypermap.map.set(key, this.fromJSON(value, scripts2, transcludedNodes2, hypermap, tab));
         } else if (Array.isArray(value)) {
-          value.map((item, index) => {
-            if (isMap(item)) {
-              value[index] = this.fromJSON(item, scripts2, transcludedNodes2, hypermap, tab);
-            }
-          });
+          hypermap.map.set(key, Hyperlist.fromLiteral(value, hypermap));
         }
       });
       if (attributes.rels?.includes("transclude")) {
@@ -120,6 +161,9 @@
     replace(otherHypermap) {
       this.map = otherHypermap.map;
       return this;
+    }
+    length() {
+      throw new Error("DRAGONS");
     }
     // Todo: make isomorphic
     async fetchTransclusion() {

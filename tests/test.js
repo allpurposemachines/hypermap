@@ -25,7 +25,7 @@ test('Given a client with a tab', async (t) => {
 
 		const hypermap = await tab.data();
 		assert.equal(hypermap.at('completed'), 0);
-		assert.equal(hypermap.at('todos').length, 1);
+		assert.equal(hypermap.at('todos').length(), 1);
 		assert.equal(hypermap.has('newTodo'), true);
 		assert.equal(hypermap.at('completed', 'badPath'), undefined);
 	});
@@ -60,8 +60,8 @@ test('Given a client with a tab', async (t) => {
 		await tab.fetch(['newTodo']);
 		
 		const hypermap = await tab.data();
-		assert.equal(hypermap.at('todos').length, 2);
-		assert.equal(hypermap.at('todos', 1).at('title'), newTitle);
+		assert.equal(hypermap.at('todos').length(), 2);
+		assert.equal(hypermap.at('todos', 1, 'title'), newTitle);
 	});
 	
 	await t.test('Load a script', async () => {

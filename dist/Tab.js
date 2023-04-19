@@ -32,6 +32,12 @@ class Tab extends EventTarget {
     }
     async fetch(path) {
         const node = (await this.data()).at(...path);
+        if (node == undefined) {
+            throw new Error('Node does not exist');
+        }
+        if (node.attributes === undefined) {
+            throw new Error('Attempting to fetch a non-fetchable node');
+        }
         if (node.attributes.rels?.includes('transclude')) {
             await this.page.evaluate(async (path)=>{
                 await globalThis.hypermap.at(...path).fetch();

@@ -1,4 +1,5 @@
 import { isMap } from './utils/json_processing.js';
+import Hyperlist from './Hyperlist.js';
 
 export default class Hypermap extends EventTarget {
 	attributes;
@@ -23,11 +24,12 @@ export default class Hypermap extends EventTarget {
 			if (isMap(value)) {
 				hypermap.map.set(key, this.fromJSON(value, scripts, transcludedNodes, hypermap, tab));
 			} else if (Array.isArray(value)) {
-				value.map((item, index) => {
-					if (isMap(item)) {
-						value[index] = this.fromJSON(item, scripts, transcludedNodes, hypermap, tab);
-					}
-				});
+				hypermap.map.set(key, Hyperlist.fromLiteral(value, hypermap));
+				// value.map((item, index) => {
+				// 	if (isMap(item)) {
+				// 		value[index] = this.fromJSON(item, scripts, transcludedNodes, hypermap, tab);
+				// 	}
+				// });
 			}
 		});
 
@@ -143,6 +145,10 @@ export default class Hypermap extends EventTarget {
 	replace(otherHypermap) {
 		this.map = otherHypermap.map;
 		return this;
+	}
+
+	length() {
+		throw new Error('DRAGONS');
 	}
 
 	// Todo: make isomorphic

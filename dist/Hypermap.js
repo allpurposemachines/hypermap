@@ -7,6 +7,12 @@ Object.defineProperty(exports, "default", {
     get: ()=>Hypermap
 });
 const _json_processing = require("./utils/json_processing.js");
+const _Hyperlist = /*#__PURE__*/ _interop_require_default(require("./Hyperlist.js"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 class Hypermap extends EventTarget {
     attributes;
     map;
@@ -27,11 +33,12 @@ class Hypermap extends EventTarget {
             if ((0, _json_processing.isMap)(value)) {
                 hypermap.map.set(key, this.fromJSON(value, scripts, transcludedNodes, hypermap, tab));
             } else if (Array.isArray(value)) {
-                value.map((item, index)=>{
-                    if ((0, _json_processing.isMap)(item)) {
-                        value[index] = this.fromJSON(item, scripts, transcludedNodes, hypermap, tab);
-                    }
-                });
+                hypermap.map.set(key, _Hyperlist.default.fromLiteral(value, hypermap));
+            // value.map((item, index) => {
+            // 	if (isMap(item)) {
+            // 		value[index] = this.fromJSON(item, scripts, transcludedNodes, hypermap, tab);
+            // 	}
+            // });
             }
         });
         // Push transcluded nodes to a list to load later
@@ -135,6 +142,9 @@ class Hypermap extends EventTarget {
     replace(otherHypermap) {
         this.map = otherHypermap.map;
         return this;
+    }
+    length() {
+        throw new Error('DRAGONS');
     }
     // Todo: make isomorphic
     async fetchTransclusion() {
