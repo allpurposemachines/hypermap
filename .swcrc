@@ -14,7 +14,6 @@
 			"topLevelAwait": false,
 			"importMeta": true
 		},
-		"transform": null,
 		"target": "es2022",
 		"loose": false,
 		"externalHelpers": false,

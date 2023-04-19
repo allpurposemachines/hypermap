@@ -1,2 +1,2 @@
-import cjsModule from './dist/main.js';
+import cjsModule from './dist/Client.js';
 export const Client = cjsModule.Client;

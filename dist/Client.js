@@ -8,7 +8,7 @@ Object.defineProperty(exports, "Client", {
 });
 const _puppeteer = /*#__PURE__*/ _interop_require_default(require("puppeteer"));
 const _fs = /*#__PURE__*/ _interop_require_wildcard(require("fs"));
-const _Hypermap = /*#__PURE__*/ _interop_require_default(require("./Hypermap.js"));
+const _Tab = /*#__PURE__*/ _interop_require_default(require("./Tab.js"));
 function _interop_require_default(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -54,61 +54,33 @@ function _interop_require_wildcard(obj, nodeInterop) {
     return newObj;
 }
 class Client {
-    browser;
+    #browser;
     static async launch() {
         const client = new Client();
-        client.browser = await _puppeteer.default.launch();
+        client.#browser = await _puppeteer.default.launch();
         return client;
     }
     async newTab(options = {}) {
-        const tab = await this.browser?.newPage();
+        const page = await this.#browser?.newPage();
         if (options.debug) {
-            await tab?.setRequestInterception(true);
-            tab?.on('console', (msg)=>console.log('PAGE LOG:', msg.text()));
+            await page.setRequestInterception(true);
+            page.on('console', (msg)=>console.log('PAGE LOG:', msg.text()));
         }
-        await tab.exposeFunction('contentChanged', ()=>{
-            tab.emit('contentchanged');
+        await page.exposeFunction('contentChanged', ()=>{
+            page.emit('contentchanged');
         });
         const shim = _fs.readFileSync(new URL('assets/shim.js', require("url").pathToFileURL(__filename).toString()), 'utf8');
-        tab.on('load', async ()=>{
-            await tab.evaluate(shim);
+        page.on('load', async ()=>{
+            await page.evaluate(shim);
         });
-        tab.data = async function() {
-            const hypermapJson = await this.evaluate(()=>{
-                return globalThis.serializedHypermap();
-            });
-            return _Hypermap.default.fromJSON(hypermapJson, [], [], null, this);
-        };
-        tab.fetch = async function(path) {
-            const node = (await this.data()).at(...path);
-            if (node.attributes.rels?.includes('transclude')) {
-                await this.evaluate(async (path)=>{
-                    // eslint-disable-next-line no-undef
-                    await hypermap.at(...path).fetch();
-                }, path);
-            } else {
-                await Promise.all([
-                    this.waitForNavigation(),
-                    this.evaluate((path)=>{
-                        // eslint-disable-next-line no-undef
-                        hypermap.at(...path).fetch();
-                    }, path)
-                ]);
-            }
-        };
-        tab.set = async function(path, value) {
-            await this.evaluate((path, value)=>{
-                globalThis.hypermap.at(...path.slice(0, -1)).set(path.at(-1), value);
-            }, path, value);
-        };
-        return tab;
+        return new _Tab.default(page, options);
     }
     async tabs() {
-        return await this.browser?.pages();
+        return await this.#browser?.pages();
     }
     async close() {
-        await this.browser?.close();
+        await this.#browser?.close();
     }
 }
 
-//# sourceMappingURL=main.js.map
+//# sourceMappingURL=Client.js.map

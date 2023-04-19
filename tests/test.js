@@ -10,7 +10,7 @@ const handleRequest = mockServer.handleRequest;
 test('Given a client with a tab', async (t) => {
 	const client = await Client.launch();
 	const tab = await client.newTab({debug: true});
-	tab.on('request', request => handleRequest(request));
+	tab.page.on('request', request => handleRequest(request));
 
 	t.afterEach(() => mockServer.reset());
 
