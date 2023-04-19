@@ -17,7 +17,7 @@
       const hyperlist = new this([], parent);
       const convertedArray = array.map((value) => {
         if (isMap(value)) {
-          return Hypermap.fromJSON(value, [], [], hyperlist);
+          return Hypermap.fromLiteral(value, hyperlist);
         } else if (Array.isArray(value)) {
           return Hyperlist.fromLiteral(value, hyperlist);
         } else {
@@ -54,33 +54,42 @@
     attributes;
     map;
     #parent;
-    #tab;
-    constructor(data, attributes, parent, tab = null) {
+    constructor(data, attributes, parent) {
       super();
       this.map = new Map(Object.entries(data));
       this.attributes = attributes;
       this.#parent = parent;
-      this.#tab = tab;
     }
-    static fromJSON(object, scripts2 = [], transcludedNodes2 = [], parent = null, tab = null) {
+    static fromLiteral(object, parent = null) {
       const attributes = object["@"] || {};
       delete object["@"];
-      let hypermap = new this(object, attributes, parent, tab);
+      let hypermap = new this(object, attributes, parent);
       hypermap.forEach((value, key) => {
         if (isMap(value)) {
-          hypermap.map.set(key, this.fromJSON(value, scripts2, transcludedNodes2, hypermap, tab));
+          hypermap.map.set(key, this.fromLiteral(value, hypermap));
         } else if (Array.isArray(value)) {
           hypermap.map.set(key, Hyperlist.fromLiteral(value, hypermap));
         }
       });
-      if (attributes.rels?.includes("transclude")) {
-        transcludedNodes2.push(hypermap);
-      }
-      if (attributes.script && typeof window !== "undefined") {
-        const url = new URL(attributes.script, window.location.href);
-        scripts2.push(url);
-      }
       return hypermap;
+    }
+    static isCollection(value) {
+      return ["Hypermap", "Hyperlist"].includes(value.constructor.name);
+    }
+    async hydrate() {
+      if (this.attributes.script) {
+        try {
+          await import(this.attributes.script);
+        } catch (err) {
+          console.log(`Error importing script at ${this.attributes.script}`, err.message);
+        }
+      }
+      if (this.attributes.rels?.includes("transclude")) {
+        this.fetchTransclusion();
+      }
+      this.children().forEach((child) => {
+        child.hydrate();
+      });
     }
     // Todo: make isomorphic
     async fetch() {
@@ -128,7 +137,7 @@
       this.parent;
     }
     children() {
-      return [...this.map].filter(([_, value]) => isMap(value) || Array.isArray(value)).map(([_, value]) => value);
+      return [...this.map].filter(([_, value]) => Hypermap.isCollection(value)).map(([_, value]) => value);
     }
     path() {
       if (this.#parent === null) {
@@ -165,11 +174,10 @@
     length() {
       throw new Error("DRAGONS");
     }
-    // Todo: make isomorphic
     async fetchTransclusion() {
       const response = await fetch(this.attributes.href);
       const json = await response.json();
-      const newNode = await Hypermap.fromJSON(json, [], []);
+      const newNode = Hypermap.fromLiteral(json);
       this.replace(newNode);
     }
     toJSON() {
@@ -185,21 +193,10 @@
   };
 
   // src/assets/shim.js
-  var scripts = [];
-  var transcludedNodes = [];
   var serializedHypermap = document.body.querySelector("pre").innerHTML;
   var jsonHypermap = JSON.parse(serializedHypermap);
-  globalThis.hypermap = Hypermap.fromJSON(jsonHypermap, scripts, transcludedNodes);
-  scripts.forEach(async (url) => {
-    try {
-      await import(url);
-    } catch (err) {
-      console.log(`Error importing script at ${url}`, err.message);
-    }
-  });
-  transcludedNodes.forEach(async (node) => {
-    await node.fetchTransclusion();
-  });
+  globalThis.hypermap = Hypermap.fromLiteral(jsonHypermap);
+  globalThis.hypermap.hydrate();
   globalThis.serializedHypermap = () => {
     return JSON.parse(JSON.stringify(globalThis.hypermap));
   };

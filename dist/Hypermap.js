@@ -13,44 +13,88 @@ function _interop_require_default(obj) {
         default: obj
     };
 }
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {};
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
 class Hypermap extends EventTarget {
     attributes;
     map;
     #parent;
-    #tab;
-    constructor(data, attributes, parent, tab = null){
+    constructor(data, attributes, parent){
         super();
         this.map = new Map(Object.entries(data));
         this.attributes = attributes;
         this.#parent = parent;
-        this.#tab = tab;
     }
-    static fromJSON(object, scripts = [], transcludedNodes = [], parent = null, tab = null) {
+    static fromLiteral(object, parent = null) {
         const attributes = object['@'] || {};
         delete object['@'];
-        let hypermap = new this(object, attributes, parent, tab);
+        let hypermap = new this(object, attributes, parent);
         hypermap.forEach((value, key)=>{
             if ((0, _json_processing.isMap)(value)) {
-                hypermap.map.set(key, this.fromJSON(value, scripts, transcludedNodes, hypermap, tab));
+                hypermap.map.set(key, this.fromLiteral(value, hypermap));
             } else if (Array.isArray(value)) {
                 hypermap.map.set(key, _Hyperlist.default.fromLiteral(value, hypermap));
-            // value.map((item, index) => {
-            // 	if (isMap(item)) {
-            // 		value[index] = this.fromJSON(item, scripts, transcludedNodes, hypermap, tab);
-            // 	}
-            // });
             }
         });
-        // Push transcluded nodes to a list to load later
-        if (attributes.rels?.includes('transclude')) {
-            transcludedNodes.push(hypermap);
-        }
-        // Push script URLs to a queue to load later
-        if (attributes.script && typeof window !== 'undefined') {
-            const url = new URL(attributes.script, window.location.href);
-            scripts.push(url);
-        }
         return hypermap;
+    }
+    static isCollection(value) {
+        return [
+            'Hypermap',
+            'Hyperlist'
+        ].includes(value.constructor.name);
+    }
+    async hydrate() {
+        if (this.attributes.script) {
+            try {
+                await Promise.resolve(this.attributes.script).then((p)=>/*#__PURE__*/ _interop_require_wildcard(require(p)));
+            } catch (err) {
+                console.log(`Error importing script at ${this.attributes.script}`, err.message);
+            }
+        }
+        if (this.attributes.rels?.includes('transclude')) {
+            this.fetchTransclusion();
+        }
+        this.children().forEach((child)=>{
+            child.hydrate();
+        });
     }
     // Todo: make isomorphic
     async fetch() {
@@ -104,7 +148,7 @@ class Hypermap extends EventTarget {
     children() {
         return [
             ...this.map
-        ].filter(([_, value])=>(0, _json_processing.isMap)(value) || Array.isArray(value)).map(([_, value])=>value);
+        ].filter(([_, value])=>Hypermap.isCollection(value)).map(([_, value])=>value);
     }
     path() {
         if (this.#parent === null) {
@@ -146,12 +190,11 @@ class Hypermap extends EventTarget {
     length() {
         throw new Error('DRAGONS');
     }
-    // Todo: make isomorphic
     async fetchTransclusion() {
         const response = await fetch(this.attributes.href);
         const json = await response.json();
         // Todo: should handle scripts and sub-transclusions
-        const newNode = await Hypermap.fromJSON(json, [], []);
+        const newNode = Hypermap.fromLiteral(json);
         this.replace(newNode);
     }
     toJSON() {

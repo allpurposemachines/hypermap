@@ -15,7 +15,7 @@ export default class Hyperlist extends EventTarget {
 		const hyperlist = new this([], parent);
 		const convertedArray = array.map(value => {
 			if (isMap(value)) {
-				return Hypermap.fromJSON(value, [], [], hyperlist);
+				return Hypermap.fromLiteral(value, hyperlist);
 			} else if (Array.isArray(value)) {
 				return Hyperlist.fromLiteral(value, hyperlist);
 			} else {

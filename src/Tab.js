@@ -20,7 +20,7 @@ export default class Tab extends EventTarget {
 		const hypermapJson = await this.page.evaluate(() => {
 			return globalThis.serializedHypermap();
 		});
-		return Hypermap.fromJSON(hypermapJson, [], [], null, this);
+		return Hypermap.fromLiteral(hypermapJson);
 	}
 
 	async fetch(path) {

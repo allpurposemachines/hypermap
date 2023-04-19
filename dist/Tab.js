@@ -28,7 +28,7 @@ class Tab extends EventTarget {
         const hypermapJson = await this.page.evaluate(()=>{
             return globalThis.serializedHypermap();
         });
-        return _Hypermap.default.fromJSON(hypermapJson, [], [], null, this);
+        return _Hypermap.default.fromLiteral(hypermapJson);
     }
     async fetch(path) {
         const node = (await this.data()).at(...path);

@@ -25,7 +25,7 @@ class Hyperlist extends EventTarget {
         const hyperlist = new this([], parent);
         const convertedArray = array.map((value)=>{
             if ((0, _json_processing.isMap)(value)) {
-                return _Hypermap.default.fromJSON(value, [], [], hyperlist);
+                return _Hypermap.default.fromLiteral(value, hyperlist);
             } else if (Array.isArray(value)) {
                 return Hyperlist.fromLiteral(value, hyperlist);
             } else {
