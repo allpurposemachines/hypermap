@@ -143,7 +143,7 @@ class Hypermap extends EventTarget {
         }
     }
     parent() {
-        this.parent;
+        return this.#parent;
     }
     children() {
         return [

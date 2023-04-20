@@ -134,7 +134,7 @@
       }
     }
     parent() {
-      this.parent;
+      return this.#parent;
     }
     children() {
       return [...this.map].filter(([, value]) => Hypermap.isCollection(value)).map(([, value]) => value);

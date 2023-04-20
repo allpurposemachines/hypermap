@@ -17,30 +17,30 @@ test('Given a client with a tab', async (t) => {
 	await t.test('Direct navigation', async () => {
 		await tab.goto(baseUrl, { waitUntil: 'networkidle0' });
 		
-		assert.equal(await tab.url(), baseUrl);
+		assert.strictEqual(await tab.url(), baseUrl);
 	});
 	
 	await t.test('Load a basic HyperMap', async () => {
 		await tab.goto(baseUrl);
 
 		const hypermap = await tab.data();
-		assert.equal(hypermap.at('completed'), 0);
-		assert.equal(hypermap.at('todos').length(), 1);
-		assert.equal(hypermap.has('newTodo'), true);
-		assert.equal(hypermap.at('completed', 'badPath'), undefined);
+		assert.strictEqual(hypermap.at('completed'), 0);
+		assert.strictEqual(hypermap.at('todos').length(), 1);
+		assert.strictEqual(hypermap.has('newTodo'), true);
+		assert.strictEqual(hypermap.at('completed', 'badPath'), undefined);
 	});
 
-	await t.test('Navigate the heirarchy', async () => {
+	await t.test('Navigate the hierarchy', async () => {
 		await tab.goto(baseUrl + 'deep/');
 
 		const hypermap = await tab.data();
 
-		assert.notStrictEqual(hypermap.path(), []);
-		assert.notStrictEqual(hypermap.at('one', 'two', 'three').path(), ['one', 'two', 'three']);
+		assert.deepStrictEqual(hypermap.path(), []);
+		assert.deepStrictEqual(hypermap.at('one', 'two', 'three').path(), ['one', 'two', 'three']);
 
-		assert.equal(hypermap.children().length, 1);
-		assert.equal(hypermap.parent(), null);
-		assert.notStrictEqual(hypermap.at('one').parent(), hypermap);
+		assert.strictEqual(hypermap.children().length, 1);
+		assert.strictEqual(hypermap.parent(), null);
+		assert.strictEqual(hypermap.at('one').parent(), hypermap);
 	});
 	
 	await t.test('Follow a link', async () => {
@@ -48,8 +48,8 @@ test('Given a client with a tab', async (t) => {
 		await tab.fetch(['todos', 0]);
 		
 		const hypermap = await tab.data();
-		assert.equal(hypermap.has('title'), true);
-		assert.equal(tab.url(), 'http://localhost/1/');
+		assert.strictEqual(hypermap.has('title'), true);
+		assert.strictEqual(tab.url(), 'http://localhost/1/');
 	});
 	
 	await t.test('Use a control', async () => {
@@ -60,15 +60,15 @@ test('Given a client with a tab', async (t) => {
 		await tab.fetch(['newTodo']);
 		
 		const hypermap = await tab.data();
-		assert.equal(hypermap.at('todos').length(), 2);
-		assert.equal(hypermap.at('todos', 1, 'title'), newTitle);
+		assert.strictEqual(hypermap.at('todos').length(), 2);
+		assert.strictEqual(hypermap.at('todos', 1, 'title'), newTitle);
 	});
 	
 	await t.test('Load a script', async () => {
 		await tab.goto(baseUrl + 'scriptTest/', { waitUntil: 'networkidle0' });
 		
 		const hypermap = await tab.data();
-		assert.equal(hypermap.at('foo'), 'bar');
+		assert.strictEqual(hypermap.at('foo'), 'bar');
 	});
 
 	await t.test('Handle an event (script to script)', async () => {
@@ -76,24 +76,24 @@ test('Given a client with a tab', async (t) => {
 		await tab.set(['input'], 'test');
 
 		const hypermap = await tab.data();
-		assert.equal(hypermap.at('output'), 1);
+		assert.strictEqual(hypermap.at('output'), 1);
 	});
 
 	await t.test('Load a document with transclusions', async () => {
 		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
 
 		const hypermap = await tab.data();
-		assert.equal(hypermap.at('todos', 'completed'), 0);
+		assert.strictEqual(hypermap.at('todos', 'completed'), 0);
 	});
 
 	await t.test('Fetching a transcluded node', async () => {
 		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
 		let hypermap = await tab.data();
-		assert.equal(hypermap.at('counter', 'count'), 0);
+		assert.strictEqual(hypermap.at('counter', 'count'), 0);
 
 		await tab.fetch(['counter']);
 		hypermap = await tab.data();
-		assert.equal(hypermap.at('counter', 'count'), 1);
+		assert.strictEqual(hypermap.at('counter', 'count'), 1);
 	});
 
 	await client.close();
