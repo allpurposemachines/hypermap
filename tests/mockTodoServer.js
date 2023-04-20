@@ -1,64 +1,63 @@
 import fs from 'fs';
 
-const index = {
-	completed: 0,
-	todos: [
-		{
+const routes = {
+	"/": {
+		completed: 0,
+		todos: [
+			{
+				'@': {
+					href: '1/'
+				},
+				title: 'Buy milk',
+				completed: false
+			}
+		],
+		newTodo: {
 			'@': {
-				href: '1/'
+				href: '',
+				method: 'POST'
 			},
-			title: 'Buy milk',
-			completed: false
-		}
-	],
-	newTodo: {
-		'@': {
-			href: '',
-			method: 'POST'
-		},
-		title: 'String'
-	}
-};
-
-const first = {
-	title: 'Buy milk',
-	completed: false
-};
-
-const scriptMap = {
-	'@': {
-		script: '/fooScript.js'
-	}
-};
-
-const transclude = {
-	todos: {
-		'@': {
-			href: '/',
-			rels: ['transclude']
+			title: 'String'
 		}
 	},
-	counter: {
+	"/1/": {
+		title: 'Buy milk',
+		completed: false
+	},
+	"/scripts/": {
 		'@': {
-			href: '/counter/',
-			rels: ['transclude']
+			script: '/assets/test.js'
 		}
-	}
-};
-
-const deep = {
-	one: {
-		two: {
-			three: {}
+	},
+	"/transclude/": {
+		todos: {
+			'@': {
+				href: '/',
+				rels: ['transclude']
+			}
+		},
+		counter: {
+			'@': {
+				href: '/counter/',
+				rels: ['transclude']
+			}
+		}
+	},
+	"/counter/": {
+		count: 0
+	},
+	"/deep/": {
+		one: {
+			two: {
+				three: {}
+			}
 		}
 	}
 }
 
-let counter;
-
 const mockTodoServer = (baseUrl) => ({
 	reset: () => {
-		counter = { count: 0 };
+		routes["/counter/"] = { count: 0 };
 	},
 
 	handleRequest: request => {
@@ -74,47 +73,34 @@ const mockTodoServer = (baseUrl) => ({
 			headers: { 'Location': '/' }
 		};
 
-		switch (request.url()) {
-			case baseUrl:
-				if (request.method() === 'GET') {
-					request.respond(partialResponse(index));
-				} else if (request.method() === 'POST') {
-					const { title } = JSON.parse(request.postData());
-					index.todos.push({
-						'@': {
-							href: '2/'
-						},
-						completed: false,
-						title
-					});
-					request.respond(partialPostReponse);
-				}
-				break;
-			case baseUrl + 'deep/':
-				request.respond(partialResponse(deep));
-				break;
-			case baseUrl + '1/':
-				request.respond(partialResponse(first));
-				break;
-			case baseUrl + 'scriptTest/':
-				request.respond(partialResponse(scriptMap));
-				break;
-			case baseUrl + 'fooScript.js':
-				request.respond({
-					status: 200,
-					contentType: 'application/javascript',
-					body: fs.readFileSync('./tests/mock_assets/fooScript.js', 'utf8')
-				});
-				break;
-			case baseUrl + 'transclude/':
-				request.respond(partialResponse(transclude));
-				break;
-			case baseUrl + 'counter/':
-				request.respond(partialResponse(counter));
-				counter = { count: counter.count + 1 };
-				break;
-			default:
-				throw new Error('No route defined');
+		const url = new URL(request.url());
+
+		if (url.toString() === baseUrl && request.method() === 'POST') {
+			const { title } = JSON.parse(request.postData());
+			routes["/"].todos.push({
+				'@': {
+					href: '2/'
+				},
+				completed: false,
+				title
+			});
+			request.respond(partialPostReponse);
+			return;
+		} else if (url.pathname.split('/').at(1) === 'assets') {
+			const fileName = url.pathname.split('/').at(2);
+			request.respond({
+				status: 200,
+				contentType: 'application/javascript',
+				body: fs.readFileSync(`./tests/mock_assets/${fileName}`, 'utf8')
+			});
+		} else if (routes[url.pathname]) {
+			request.respond(partialResponse(routes[url.pathname]));
+		} else {
+			throw new Error(`No response defined for ${url}`);
+		}
+		
+		if (url.pathname === '/counter/') {
+			routes["/counter/"] = { count: routes["/counter/"].count + 1 };
 		}
 	}
 });

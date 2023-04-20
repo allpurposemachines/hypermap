@@ -65,14 +65,14 @@ test('Given a client with a tab', async (t) => {
 	});
 	
 	await t.test('Load a script', async () => {
-		await tab.goto(baseUrl + 'scriptTest/', { waitUntil: 'networkidle0' });
+		await tab.goto(baseUrl + 'scripts/', { waitUntil: 'networkidle0' });
 		
 		const hypermap = await tab.data();
 		assert.strictEqual(hypermap.at('foo'), 'bar');
 	});
 
 	await t.test('Handle an event (script to script)', async () => {
-		await tab.goto(baseUrl + 'scriptTest/', { waitUntil: 'networkidle0' });
+		await tab.goto(baseUrl + 'scripts/', { waitUntil: 'networkidle0' });
 		await tab.set(['input'], 'test');
 
 		const hypermap = await tab.data();
