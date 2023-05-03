@@ -2,9 +2,9 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "Client", {
+Object.defineProperty(exports, "Mech", {
     enumerable: true,
-    get: ()=>Client
+    get: ()=>Mech
 });
 const _puppeteer = /*#__PURE__*/ _interop_require_default(require("puppeteer"));
 const _fs = /*#__PURE__*/ _interop_require_wildcard(require("fs"));
@@ -53,12 +53,12 @@ function _interop_require_wildcard(obj, nodeInterop) {
     }
     return newObj;
 }
-class Client {
+class Mech {
     #browser;
     static async launch() {
-        const client = new Client();
-        client.#browser = await _puppeteer.default.launch();
-        return client;
+        const mech = new Mech();
+        mech.#browser = await _puppeteer.default.launch();
+        return mech;
     }
     async newTab(options = {}) {
         const page = await this.#browser?.newPage();
@@ -83,4 +83,4 @@ class Client {
     }
 }
 
-//# sourceMappingURL=Client.js.map
+//# sourceMappingURL=Mech.js.map

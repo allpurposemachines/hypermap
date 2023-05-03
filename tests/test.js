@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'assert';
-import { Client } from '../wrapper.js';
+import Mech from '../wrapper.js';
 import mockTodoServer from './mockTodoServer.js';
 
 const baseUrl = 'http://localhost/';
 const mockServer = mockTodoServer(baseUrl);
 const handleRequest = mockServer.handleRequest;
 
-test('Given a client with a tab', async (t) => {
-	const client = await Client.launch();
-	const tab = await client.newTab({debug: true});
+test('Given a tab', async (t) => {
+	const mech = await Mech.launch();
+	const tab = await mech.newTab({debug: true});
 	tab.page.on('request', request => handleRequest(request));
 
 	t.afterEach(() => mockServer.reset());
@@ -96,5 +96,5 @@ test('Given a client with a tab', async (t) => {
 		assert.strictEqual(hypermap.at('counter', 'count'), 1);
 	});
 
-	await client.close();
+	await mech.close();
 });

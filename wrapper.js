@@ -1,2 +1,3 @@
-import cjsModule from './dist/Client.js';
-export const Client = cjsModule.Client;
+import cjsModule from './dist/Mech.js';
+const Mech = cjsModule.Mech;
+export default Mech;

@@ -2,13 +2,13 @@ import puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import Tab from './Tab.js';
 
-export class Client {
+export class Mech {
 	#browser;
 
 	static async launch() {
-		const client = new Client();
-		client.#browser = await puppeteer.launch();
-		return client;
+		const mech = new Mech();
+		mech.#browser = await puppeteer.launch();
+		return mech;
 	}
 
 	async newTab(options = {}) {
