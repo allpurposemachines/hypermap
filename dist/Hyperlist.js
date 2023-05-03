@@ -49,6 +49,9 @@ class Hyperlist extends EventTarget {
             return head.at(...path.slice(1));
         }
     }
+    forEach(...args) {
+        this.array.forEach(...args);
+    }
     length() {
         return this.array.length;
     }

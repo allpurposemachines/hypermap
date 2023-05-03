@@ -43,6 +43,10 @@ export default class Hyperlist extends EventTarget {
 		}
 	}
 
+	forEach(...args) {
+		this.array.forEach(...args);
+	}
+
 	length() {
 		return this.array.length;
 	}

@@ -17,6 +17,9 @@ class Tab extends EventTarget {
     constructor(page){
         super();
         this.page = page;
+        this.page.on('contentchanged', ()=>{
+            this.dispatchEvent(new Event('contentchanged'));
+        });
     }
     async goto(...args) {
         await this.page.goto(...args);
