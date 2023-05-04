@@ -2,23 +2,28 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "default", {
+Object.defineProperty(exports, // import { CustomEvent } from 'node:events';
+"default", {
     enumerable: true,
     get: ()=>Tab
 });
+const _nodeevents = require("node:events");
 const _Hypermap = /*#__PURE__*/ _interop_require_default(require("./Hypermap.js"));
 function _interop_require_default(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
 }
-class Tab extends EventTarget {
+class Tab extends _nodeevents.EventEmitter {
     page;
     constructor(page){
         super();
         this.page = page;
         this.page.on('contentchanged', ()=>{
-            this.dispatchEvent(new Event('contentchanged'));
+            this.emit('contentchanged');
+        });
+        this.page.on('console', (msg)=>{
+            this.emit('console', msg);
         });
     }
     async goto(...args) {

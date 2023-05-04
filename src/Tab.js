@@ -1,6 +1,8 @@
+import { EventEmitter } from 'node:events';
 import Hypermap from './Hypermap.js';
+// import { CustomEvent } from 'node:events';
 
-export default class Tab extends EventTarget {
+export default class Tab extends EventEmitter {
 	page;
 
 	constructor(page) {
@@ -8,7 +10,11 @@ export default class Tab extends EventTarget {
 		this.page = page;
 
 		this.page.on('contentchanged', () => {
-			this.dispatchEvent(new Event('contentchanged'));
+			this.emit('contentchanged');
+		});
+
+		this.page.on('console', msg => {
+			this.emit('console', msg);
 		});
 	}
 
