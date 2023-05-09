@@ -158,7 +158,7 @@ export default class Hypermap extends EventTarget {
 	}
 
 	length() {
-		throw new Error('DRAGONS');
+		return [...this.map.values()].length;
 	}
 
 	isCollection() {
