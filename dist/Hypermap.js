@@ -192,7 +192,9 @@ class Hypermap extends EventTarget {
         return this;
     }
     length() {
-        throw new Error('DRAGONS');
+        return [
+            ...this.map.values()
+        ].length;
     }
     isCollection() {
         return true;

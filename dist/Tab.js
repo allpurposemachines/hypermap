@@ -40,13 +40,6 @@ class Tab extends _nodeevents.EventEmitter {
             return globalThis.serializedHypermap();
         });
         const unwrappedHypermap = _Hypermap.default.fromLiteral(hypermapJson);
-        // this.hypermap = unwrappedHypermap;
-        // const proxy = {
-        // 	get(target, prop) {
-        // 		console.log('OUTER', target, prop);
-        // 		Reflect.get(...arguments);
-        // 	}
-        // };
         const proxy = new _HyperProxyHandler.default(this.page, this);
         this.hypermap = new Proxy(unwrappedHypermap, proxy);
     }
