@@ -17,7 +17,7 @@ export default class Hyperlist extends EventTarget {
 			if (isMap(value)) {
 				return Hypermap.fromLiteral(value, hyperlist);
 			} else if (Array.isArray(value)) {
-				return Hyperlist.fromLiteral(value, hyperlist);
+				return this.fromLiteral(value, hyperlist);
 			} else {
 				return value;
 			}
@@ -49,6 +49,41 @@ export default class Hyperlist extends EventTarget {
 
 	length() {
 		return this.array.length;
+	}
+
+	parent() {
+		return this.#parent;
+	}
+
+	children() {
+		return this.array
+			.filter(value => value.isCollection && value.isCollection());
+	}
+
+	path() {
+		if (this.parent() === null) {
+			return [];
+		} else {
+			return this.parent().path().concat(this.parent().keyFor(this));
+		}
+	}
+
+	async $(key, values) {
+		const node = this.at(key);
+		if (values) {
+			Object.entries(values).forEach(([key, value]) => {
+				node.set(key, value);
+			});
+		}
+		await node.fetch();
+	}
+
+	isCollection() {
+		return true;
+	}
+
+	keyFor(node) {
+		this.array.indexOf(node);
 	}
 
 	toJSON() {

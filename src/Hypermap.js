@@ -28,10 +28,6 @@ export default class Hypermap extends EventTarget {
 		return hypermap;
 	}
 
-	static isCollection(value) {
-		return ['Hypermap', 'Hyperlist'].includes(value.constructor.name);
-	}
-
 	async hydrate() {
 		if (this.attributes.script) {
 			try {
@@ -42,7 +38,7 @@ export default class Hypermap extends EventTarget {
 		}
 	
 		if (this.attributes.rels?.includes('transclude')) {
-			this.fetchTransclusion();
+			await this.fetchTransclusion();
 		}
 
 		this.children().forEach(child => {
@@ -50,7 +46,6 @@ export default class Hypermap extends EventTarget {
 		})
 	}
 
-	// Todo: make isomorphic
 	async fetch() {
 		const method = this.attributes.method || 'get';
 		const url = new URL(this.attributes.href, window.location);
@@ -81,6 +76,16 @@ export default class Hypermap extends EventTarget {
 		}
 	}
 
+	async $(key, values) {
+		const node = this.at(key);
+		if (values) {
+			Object.entries(values).forEach(([key, value]) => {
+				node.set(key, value);
+			});
+		}
+		await node.fetch();
+	}
+
 	forEach(callbackfn) {
 		this.map.forEach(callbackfn);
 	}
@@ -107,16 +112,15 @@ export default class Hypermap extends EventTarget {
 	}
 
 	children() {
-		return [...this.map]
-			.filter(([, value]) => Hypermap.isCollection(value))
-			.map(([, value]) => value);
+		return [...this.map.values()]
+			.filter(value => value.isCollection && value.isCollection());
 	}
 	
 	path() {
-		if (this.#parent === null) {
+		if (this.parent() === null) {
 			return [];
 		} else {
-			return this.#parent.path().concat(this.#parent.keyFor(this));
+			return this.parent().path().concat(this.parent().keyFor(this));
 		}
 	}
 
@@ -136,9 +140,11 @@ export default class Hypermap extends EventTarget {
 
 	set(key, value) {
 		this.map.set(key, value);
-		const event = new CustomEvent('changed', { detail: { key, value } });
-		this.dispatchEvent(event);
-		window.contentChanged();
+		if (window) {
+			const event = new CustomEvent('changed', { detail: { key, value } });
+			this.dispatchEvent(event);
+			window.contentChanged();
+		}
 		return this;
 	}
 
@@ -155,11 +161,15 @@ export default class Hypermap extends EventTarget {
 		throw new Error('DRAGONS');
 	}
 
+	isCollection() {
+		return true;
+	}
+
 	async fetchTransclusion() {
 		const response = await fetch(this.attributes.href);
 		const json = await response.json();
 		// Todo: should handle scripts and sub-transclusions
-		const newNode = Hypermap.fromLiteral(json);
+		const newNode = this.constructor.fromLiteral(json);
 		this.replace(newNode);
 	}
 
