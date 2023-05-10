@@ -15,7 +15,12 @@
 	},
 	"keywords": ["hypermap", "hypermedia", "rest"],
 	"author": "daniel@allpurposemachines.com",
-	"license": "ISC",
+	"license": "MIT",
+	"repository": {
+    "type": "git",
+    "url": "git+https://github.com/allpurposemachines/hypermap"
+  },
+	"homepage": "https://www.allpurposemachines.com",
 	"dependencies": {
 		"puppeteer": "^19.7.5"
 	},
