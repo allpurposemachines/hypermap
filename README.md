@@ -12,6 +12,10 @@ It is currently shipped as an NPM package with JavaScript bindings.
 
 Both the HyperMap standard and Mech are in prototype stage. Expect significant changes.
 
+## Getting started
+
+Take a look at the tutorial in `/docs`, the server in `/example_server`, and `/mech/tests/test.js`.
+
 ## Contributing
 
 Firstly, If you are considering contributing to HyperMap, thank you!
