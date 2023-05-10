@@ -1,7 +1,7 @@
 {
 	"name": "@hypermap/mech",
-	"version": "0.0.1",
-	"description": "",
+	"version": "0.1.0",
+	"description": "A user agent for HyperMap services",
 	"type": "module",
 	"exports": {
 		"import": "./wrapper.js",
@@ -13,8 +13,8 @@
 		"build": "rm -r dist && npx swc ./src --ignore ./src/assets/*.js -d ./dist && rm ./dist/assets/* && esbuild ./src/assets/shim.js --bundle --outfile=./dist/assets/shim.js && echo '{}' > ./dist/package.json",
 		"start": "npm run build -- -w"
 	},
-	"keywords": [],
-	"author": "",
+	"keywords": ["hypermap", "hypermedia", "rest"],
+	"author": "daniel@allpurposemachines.com",
 	"license": "ISC",
 	"dependencies": {
 		"puppeteer": "^19.7.5"
