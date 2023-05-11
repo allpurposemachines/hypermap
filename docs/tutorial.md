@@ -18,11 +18,11 @@ First, let's take a look at the current API:
 
 % curl -X POST localhost:8000/ -d '{"title": "Learn HyperMap"}' | jq
 [
-	{
-		"title": "Learn HyperMap",
-		"completed":false,
-		"id":"5J0rwwsyh"
-	}
+  {
+    "title": "Learn HyperMap",
+    "completed":false,
+    "id":"5J0rwwsyh"
+  }
 ]
 
 % curl -I localhost:8000/
@@ -48,13 +48,13 @@ The todos resource currently returns a bare array, so we'll fix that:
 ```sh
 % curl localhost:8000/
 {
-	"todos": [
-		{
-			"title": "Learn HyperMap",
-			"completed": false,
-			"id": "5J0rwwsyh"
-		}
-	]
+  "todos": [
+    {
+      "title": "Learn HyperMap",
+      "completed": false,
+      "id": "5J0rwwsyh"
+    }
+  ]
 }
 ```
 
@@ -74,7 +74,9 @@ npm install @allpurposemachines/mech
 ```
 
 Mech has a very similar interface to a Web browser, complete with tabs!
+
 > In fact, at the moment, it's implemented as a wrapper over headless Chrome using Puppeteer though this is likely to change.
+
 Let's use Mech to connect to our service and inpsect our todos:
 
 ```javascript
@@ -98,11 +100,11 @@ Let's take a look at a single todo:
 ```sh
 $ curl localhost:8000/todos/5J0rwwsyh | jq
 {
-	"title": "Learn HyperMap",
-	"completed": false,
-	"id": "5J0rwwsyh",
-	"createdAt": "2023-05-10T15:15:59.568Z",
-	"updatedAt": "2023-05-10T15:15:59.568Z"
+  "title": "Learn HyperMap",
+  "completed": false,
+  "id": "5J0rwwsyh",
+  "createdAt": "2023-05-10T15:15:59.568Z",
+  "updatedAt": "2023-05-10T15:15:59.568Z"
 }
 ```
 
@@ -112,20 +114,21 @@ Right now, there's no connection from the index view to the individual todos, so
 ```sh
 % curl localhost:8000/ | jq
 {
-	"todos": [
-		{
-			"@": {
-				"href": "5J0rwwsyh/"
-			}
-			"title": "Learn HyperMap",
-			"completed": false
-		}
-	]
+  "todos": [
+    {
+      "@": {
+        "href": "5J0rwwsyh/"
+      }
+      "title": "Learn HyperMap",
+      "completed": false
+    }
+  ]
 }
 ```
 
 We've lifted the "id" into a new object under "@".
 This a reserved key in HyperMap's JSON serialization that holds attributes, here being used for a relative "href".
+
 > It's a good idea to use trailing slashs on all routes in a HyperMap service as the rules for resolving relative URLs without the trailing slash can catch you out.
 
 That attribute turns this object into a control, and will serve as a hint to Mech about how to fetch the todo:
@@ -141,18 +144,18 @@ If it's a method which sends a body, like `PUT` or `POST`, the inner content of 
 ```sh
 % curl localhost:8000/ | jq
 {
-	"todos": [
-		{
-			"@": {
-				"href": "5J0rwwsyh/"
-			}
-			"title": "Learn HyperMap",
-			"completed": false
-		}
-	],
-	"newTodo": {
-		"title": "String"
-	}
+  "todos": [
+    {
+      "@": {
+        "href": "5J0rwwsyh/"
+      }
+      "title": "Learn HyperMap",
+      "completed": false
+    }
+  ],
+  "newTodo": {
+    "title": "String"
+  }
 }
 ```
 
@@ -172,41 +175,41 @@ Let's add a "dueAt" time to our todos, and a script to count of how many tasks a
 ```sh
 % curl localhost:8000/ | jq
 {
-	"@": {
-		script: "/assets/overdue_checker.js"
-	}
-	"overdue": 0,
-	"todos": [
-		{
-			"@": {
-				"href": "5J0rwwsyh/"
-			}
-			"title": "Learn HyperMap",
-			"completed": false,
-			"dueAt": "2023-05-10T16:18:49.244Z"
-		}
-	],
-	"newTodo": {
-		"title": "String"
-	}
+  "@": {
+    script: "/assets/overdue_checker.js"
+  }
+  "overdue": 0,
+  "todos": [
+    {
+      "@": {
+        "href": "5J0rwwsyh/"
+      }
+      "title": "Learn HyperMap",
+      "completed": false,
+      "dueAt": "2023-05-10T16:18:49.244Z"
+    }
+  ],
+  "newTodo": {
+    "title": "String"
+  }
 }
 ```
 
 ```javascript
 // /assets/overdue_checker.js
 setInterval(() => {
-	let counter = 0;
-	const now = new Date();
+  let counter = 0;
+  const now = new Date();
 
-	hypermap.at('todos').forEach(todo => {
-		if (!todo.at('completed') && new Date(todo.at('dueAt')) < now) {
-			counter = counter + 1;
-		}
-	});
+  hypermap.at('todos').forEach(todo => {
+    if (!todo.at('completed') && new Date(todo.at('dueAt')) < now) {
+      counter = counter + 1;
+    }
+  });
 
-	if (hypermap.at('overdue') !== counter) {
-		hypermap.set('overdue', counter);
-	}
+  if (hypermap.at('overdue') !== counter) {
+    hypermap.set('overdue', counter);
+  }
 }, 1000);
 ```
 
@@ -214,8 +217,8 @@ We can then add an event listener in our Mech tab to notify us if the counter ch
 
 ```javascript
 todosTab.addEventListener('changed', (event) => {
-	if (event.detail.key === 'overdue') {
-		console.log('Uh oh, another task is overdue...');
-	}
+  if (event.detail.key === 'overdue') {
+    console.log('Uh oh, another task is overdue...');
+  }
 });
 ```
