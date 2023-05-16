@@ -101,7 +101,7 @@ app.use(async (context, next) => {
 	try {
 		context.response.type = 'application/javascript'
 		await context.send({
-			root: `${Deno.cwd()}/assets`
+			root: `${Deno.cwd()}/example_server/assets`
 		});
 	} catch {
 		await next();
