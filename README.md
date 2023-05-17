@@ -22,6 +22,8 @@ There is a hosted verison of the example server at [https://hypermap-example.den
 $ deno run --allow-net --allow-read --watch=. example_server/app.ts
 ```
 
+There is a [Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=all-purpose-machines.apm-explorer) for browsing HyperMap services and generated stub Mech code.
+
 ## Contributing
 
 Firstly, If you are considering contributing to HyperMap, thank you!
