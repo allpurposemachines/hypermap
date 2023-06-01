@@ -1,13 +1,19 @@
 import Sentiment from 'https://esm.sh/sentiment';
 
 hypermap.at('input').addEventListener('changed', () => {
-	let sentiment = 'neut';
 	const inputText = hypermap.at('input', 'text');
-	const sentimentScore = new Sentiment().analyze(inputText).comparative;
-	if (sentimentScore > 0.1) {
-		sentiment = 'pos';
-	} else if (sentimentScore < -0.1) {
-		sentiment = 'neg';
-	}
+	const sentiment = sentimentAsText(inputText);
 	hypermap.set('sentiment', sentiment);
 });
+
+function sentimentAsText(input) {
+	const sentiment = new Sentiment();
+	const sentimentScore = sentiment.analyze(input).comparative;
+	if (sentimentScore > 0.1) {
+		return 'pos';
+	} else if (sentimentScore < -0.1) {
+		return 'neg';
+	} else {
+		return 'neut'
+	}
+}
