@@ -72,6 +72,13 @@ test('Given a tab', async (t) => {
 		assert.strictEqual(tab.hypermap.at('output'), 1);
 	});
 
+	await t.test('Mainpulate nodes with a script', async () => {
+		await tab.goto(baseUrl + 'scripts/', { waitUntil: 'networkidle0'});
+		
+		assert.deepStrictEqual(tab.hypermap.at('list').toJSON(), ['first', 'middle1', 'middle2', 'last']);
+		assert.strictEqual(tab.hypermap.has('bad'), false);
+	});
+
 	await t.test('Load a document with transclusions', async () => {
 		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
 

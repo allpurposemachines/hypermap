@@ -1,7 +1,7 @@
 import fs from 'fs';
 
 const routes = {
-	"/": {
+	'/': {
 		completed: 0,
 		todos: [
 			{
@@ -20,16 +20,17 @@ const routes = {
 			title: 'String'
 		}
 	},
-	"/1/": {
+	'/1/': {
 		title: 'Buy milk',
 		completed: false
 	},
-	"/scripts/": {
+	'/scripts/': {
 		'@': {
 			script: '/assets/test.js'
-		}
+		},
+		'list': ['middle']
 	},
-	"/transclude/": {
+	'/transclude/': {
 		todos: {
 			'@': {
 				href: '/',
@@ -43,10 +44,10 @@ const routes = {
 			}
 		}
 	},
-	"/counter/": {
+	'/counter/': {
 		count: 0
 	},
-	"/deep/": {
+	'/deep/': {
 		one: {
 			two: {
 				three: {}
@@ -57,7 +58,7 @@ const routes = {
 
 const mockTodoServer = (baseUrl) => ({
 	reset: () => {
-		routes["/counter/"] = { count: 0 };
+		routes['/counter/'] = { count: 0 };
 	},
 
 	handleRequest: request => {
@@ -77,7 +78,7 @@ const mockTodoServer = (baseUrl) => ({
 
 		if (url.toString() === baseUrl && request.method() === 'POST') {
 			const { title } = JSON.parse(request.postData());
-			routes["/"].todos.push({
+			routes['/'].todos.push({
 				'@': {
 					href: '2/'
 				},
@@ -100,7 +101,7 @@ const mockTodoServer = (baseUrl) => ({
 		}
 		
 		if (url.pathname === '/counter/') {
-			routes["/counter/"] = { count: routes["/counter/"].count + 1 };
+			routes['/counter/'] = { count: routes['/counter/'].count + 1 };
 		}
 	}
 });

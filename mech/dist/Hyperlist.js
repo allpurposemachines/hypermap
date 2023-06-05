@@ -55,6 +55,21 @@ class Hyperlist extends EventTarget {
     length() {
         return this.array.length;
     }
+    prepend(value) {
+        this.array.unshift(value);
+    }
+    append(value) {
+        this.array.push(value);
+    }
+    set(index, value) {
+        this.array[index] = value;
+    }
+    insert(index, value) {
+        this.array.splice(index, 0, value);
+    }
+    delete(index) {
+        this.array.splice(index, 1);
+    }
     parent() {
         return this.#parent;
     }

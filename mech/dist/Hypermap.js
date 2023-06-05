@@ -184,6 +184,9 @@ class Hypermap extends EventTarget {
         }
         return this;
     }
+    delete(key) {
+        this.map.delete(key);
+    }
     keys() {
         return this.map.keys();
     }

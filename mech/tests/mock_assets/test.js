@@ -1,5 +1,17 @@
 /* eslint-disable no-undef */
+// Map manipulation
 hypermap.set('foo', 'bar');
+hypermap.set('bad', true);
+hypermap.delete('bad');
+
+// List manipulation
+const list = hypermap.at('list');
+list.prepend('first');
+list.append('last');
+list.set(1, 'middle1');
+list.insert(2, 'middle2');
+list.insert(3, 'middle3');
+list.delete(3);
 
 console.log('Test event propagation!');
 
