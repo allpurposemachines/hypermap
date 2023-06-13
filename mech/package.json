@@ -13,13 +13,17 @@
 		"build": "rm -r dist && npx swc ./src --ignore ./src/assets/*.js -d ./dist && rm ./dist/assets/* && esbuild ./src/assets/shim.js --bundle --outfile=./dist/assets/shim.js && echo '{}' > ./dist/package.json",
 		"start": "npm run build -- -w"
 	},
-	"keywords": ["hypermap", "hypermedia", "rest"],
+	"keywords": [
+		"hypermap",
+		"hypermedia",
+		"rest"
+	],
 	"author": "daniel@allpurposemachines.com",
 	"license": "MIT",
 	"repository": {
-    "type": "git",
-    "url": "git+https://github.com/allpurposemachines/hypermap"
-  },
+		"type": "git",
+		"url": "git+https://github.com/allpurposemachines/hypermap"
+	},
 	"homepage": "https://www.allpurposemachines.com",
 	"dependencies": {
 		"puppeteer": "^19.7.5"
@@ -28,6 +32,7 @@
 		"@swc/cli": "^0.1.62",
 		"@swc/core": "^1.3.42",
 		"esbuild": "^0.17.16",
-		"eslint": "^8.36.0"
+		"eslint": "^8.36.0",
+		"typescript": "^5.1.3"
 	}
 }

@@ -28,7 +28,7 @@ export class Mech {
 			await page.evaluate(shim);
 		});
 
-		return new Tab(page, options);
+		return new Tab(page);
 	}
 
 	async tabs() {

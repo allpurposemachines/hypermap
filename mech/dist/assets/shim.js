@@ -136,7 +136,7 @@
     }
     async fetch() {
       const method = this.attributes.method || "get";
-      const url = new URL(this.attributes.href, window.location);
+      const url = new URL(this.attributes.href, window.location.href);
       if (method === "get") {
         if (this.attributes.rels?.includes("transclude")) {
           await this.fetchTransclusion();

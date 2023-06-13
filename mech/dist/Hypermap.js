@@ -92,7 +92,7 @@ class Hypermap extends EventTarget {
     }
     async fetch() {
         const method = this.attributes.method || 'get';
-        const url = new URL(this.attributes.href, window.location);
+        const url = new URL(this.attributes.href, window.location.href);
         if (method === 'get') {
             if (this.attributes.rels?.includes('transclude')) {
                 await this.fetchTransclusion();
@@ -180,6 +180,7 @@ class Hypermap extends EventTarget {
                 }
             });
             this.dispatchEvent(event);
+            // @ts-expect-error
             window.contentChanged();
         }
         return this;
@@ -206,6 +207,7 @@ class Hypermap extends EventTarget {
         const response = await fetch(this.attributes.href);
         const json = await response.json();
         // Todo: should handle scripts and sub-transclusions
+        // @ts-expect-error
         const newNode = this.constructor.fromLiteral(json);
         this.replace(newNode);
     }

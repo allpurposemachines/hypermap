@@ -73,7 +73,7 @@ class Mech {
         page.on('load', async ()=>{
             await page.evaluate(shim);
         });
-        return new _Tab.default(page, options);
+        return new _Tab.default(page);
     }
     async tabs() {
         return await this.#browser?.pages();
