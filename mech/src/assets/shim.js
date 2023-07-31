@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Hypermap from '../Hypermap.js';
 
 const pre = document.body.querySelector('pre');

@@ -1,6 +1,6 @@
 {
 	"name": "@allpurposemachines/mech",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "A user agent for HyperMap services",
 	"type": "module",
 	"exports": {
@@ -8,9 +8,10 @@
 		"require": "./dist/Mech.js",
 		"default": "./wrapper.js"
 	},
+	"types": "./dist/types/Mech.d.ts",
 	"scripts": {
 		"test": "npm run build && node tests/test.js",
-		"build": "rm -r dist && npx swc ./src --ignore ./src/assets/*.js -d ./dist && rm ./dist/assets/* && esbuild ./src/assets/shim.js --bundle --outfile=./dist/assets/shim.js && echo '{}' > ./dist/package.json",
+		"build": "rm -r dist && npx swc ./src --ignore ./src/assets/*.js -d ./dist && rm ./dist/assets/* && esbuild ./src/assets/shim.js --bundle --outfile=./dist/assets/shim.js && echo '{}' > ./dist/package.json && tsc",
 		"start": "npm run build -- -w"
 	},
 	"keywords": [
@@ -31,6 +32,7 @@
 	"devDependencies": {
 		"@swc/cli": "^0.1.62",
 		"@swc/core": "^1.3.42",
+		"@tsconfig/recommended": "^1.0.2",
 		"esbuild": "^0.17.16",
 		"eslint": "^8.36.0",
 		"typescript": "^5.1.3"

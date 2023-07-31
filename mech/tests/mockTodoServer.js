@@ -1,5 +1,6 @@
 import fs from 'fs';
 
+/** @type { Record<string, any> } */
 const routes = {
 	'/': {
 		completed: 0,
@@ -56,12 +57,15 @@ const routes = {
 	}
 }
 
+/** @param { string } baseUrl */
 const mockTodoServer = (baseUrl) => ({
 	reset: () => {
 		routes['/counter/'] = { count: 0 };
 	},
 
+	/** @param { import('puppeteer').HTTPRequest } request */
 	handleRequest: request => {
+		/** @param { object } body */
 		const partialResponse = body => ({
 			status: 200,
 			contentType: 'application/vnd.hypermap+json',
@@ -77,7 +81,7 @@ const mockTodoServer = (baseUrl) => ({
 		const url = new URL(request.url());
 
 		if (url.toString() === baseUrl && request.method() === 'POST') {
-			const { title } = JSON.parse(request.postData());
+			const { title } = JSON.parse(request.postData() ?? '');
 			routes['/'].todos.push({
 				'@': {
 					href: '2/'

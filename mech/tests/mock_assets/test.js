@@ -1,4 +1,6 @@
 /* eslint-disable no-undef */
+// @ts-nocheck
+
 // Map manipulation
 hypermap.set('foo', 'bar');
 hypermap.set('bad', true);

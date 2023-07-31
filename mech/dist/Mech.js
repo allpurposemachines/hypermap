@@ -2,9 +2,15 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "Mech", {
-    enumerable: true,
-    get: ()=>Mech
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    default: ()=>Mech,
+    Tab: ()=>_Tab.default
 });
 const _puppeteer = /*#__PURE__*/ _interop_require_default(require("puppeteer"));
 const _fs = /*#__PURE__*/ _interop_require_wildcard(require("fs"));
@@ -54,14 +60,17 @@ function _interop_require_wildcard(obj, nodeInterop) {
     return newObj;
 }
 class Mech {
-    #browser;
+    /** @type { puppeteer.Browser= } */ #browser;
     static async launch() {
         const mech = new Mech();
         mech.#browser = await _puppeteer.default.launch();
         return mech;
     }
-    async newTab(options = {}) {
-        const page = await this.#browser?.newPage();
+    /** @param { { debug?: boolean } } options */ async newTab(options = {}) {
+        if (!this.#browser) {
+            throw new Error('Mech not launched yet');
+        }
+        const page = await this.#browser.newPage();
         if (options.debug) {
             await page.setRequestInterception(true);
             page.on('console', (msg)=>console.log('PAGE LOG:', msg.text()));

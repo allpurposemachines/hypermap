@@ -15,11 +15,12 @@ function _interop_require_default(obj) {
     };
 }
 class Tab extends _nodeevents.EventEmitter {
-    page;
-    hypermap = null;
-    constructor(page){
+    /** @type { import('puppeteer').Page } */ page;
+    /** @type { Hypermap | null } */ hypermap = null;
+    /** @param { import('puppeteer').Page } page */ constructor(page){
         super();
         this.page = page;
+        // @ts-expect-error
         this.page.on('contentchanged', async ()=>{
             await this.syncData();
             this.emit('contentchanged');
@@ -28,8 +29,11 @@ class Tab extends _nodeevents.EventEmitter {
             this.emit('console', msg);
         });
     }
-    async goto(...args) {
-        await this.page.goto(...args);
+    /**
+	 * @param { string } url
+	 * @param { import('puppeteer').WaitForOptions= } options
+	*/ async goto(url, options = {}) {
+        await this.page.goto(url, options);
         await this.syncData();
     }
     url() {
@@ -37,11 +41,12 @@ class Tab extends _nodeevents.EventEmitter {
     }
     async syncData() {
         const hypermapJson = await this.page.evaluate(()=>{
+            // @ts-expect-error
             return globalThis.serializedHypermap();
         });
         const unwrappedHypermap = _Hypermap.default.fromLiteral(hypermapJson);
         const proxy = new _HyperProxyHandler.default(this.page, this);
-        this.hypermap = new Proxy(unwrappedHypermap, proxy);
+        this.hypermap = /** @type { Hypermap } */ new Proxy(unwrappedHypermap, proxy);
     }
 }
 

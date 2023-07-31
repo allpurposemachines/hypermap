@@ -16,87 +16,121 @@ function _interop_require_default(obj) {
 class Hyperlist extends EventTarget {
     array;
     #parent;
-    constructor(array, parent){
+    /**
+	 * @param { import('./Hypermap.js').Value[] } array 
+	 * @param { import('./Hypermap.js').Node } parent 
+	 */ constructor(array, parent){
         super();
         this.array = array;
         this.#parent = parent;
     }
-    static fromLiteral(array, parent) {
+    /** @param { unknown } value */ static isHyperlist(value) {
+        return value instanceof Hyperlist;
+    }
+    /**
+	 * @param { unknown[] } array
+	 * @param { import('./Hypermap.js').Node } parent
+	 */ static fromLiteral(array, parent) {
         const hyperlist = new this([], parent);
-        const convertedArray = array.map((value)=>{
+        /** @type { import('./Hypermap.js').Value[] } */ const convertedArray = array.map((value)=>{
             if ((0, _json_processing.isMap)(value)) {
-                return _Hypermap.default.fromLiteral(value, hyperlist);
+                const hypermapLiteral = /** @type { import('./Hypermap.js').HypermapLiteral } */ value;
+                return _Hypermap.default.fromLiteral(hypermapLiteral, hyperlist);
             } else if (Array.isArray(value)) {
                 return this.fromLiteral(value, hyperlist);
             } else {
-                return value;
+                const valueLiteral = /** @type { import('./Hypermap.js').ValueLiteral} */ value;
+                return valueLiteral;
             }
         });
         hyperlist.array = convertedArray;
         return hyperlist;
     }
-    at(...path) {
+    async hydrate() {
+        this.children().forEach((child)=>{
+            child.hydrate();
+        });
+    }
+    /**
+	 * @param { (string|number)[] } path
+	 * @returns { import('./Hypermap.js').Value | undefined }
+	 */ at(...path) {
         if (path.length === 0) {
             return this;
         }
-        const head = this.array.at(path.at(0));
-        if (head === undefined || path.length > 1 && typeof head.at !== 'function') {
+        /** @type { import('./Hypermap.js').Value | undefined } */ const head = this.array.at(/** @type { number } */ path.at(0));
+        if (head === undefined || path.length > 1 && !(Hyperlist.isHyperlist(head) || _Hypermap.default.isHypermap(head))) {
             return undefined;
         }
         if (path.length === 1) {
             return head;
         } else {
-            return head.at(...path.slice(1));
+            const node = /** @type { import('./Hypermap.js').Node } */ head;
+            return node.at(...path.slice(1));
         }
     }
-    forEach(...args) {
-        this.array.forEach(...args);
+    /** @param { (value: import('./Hypermap.js').Value, index: number) => void } callback */ forEach(callback) {
+        this.array.forEach(callback);
     }
     length() {
         return this.array.length;
     }
-    prepend(value) {
+    /** @param { import('./Hypermap.js').Value } value */ prepend(value) {
         this.array.unshift(value);
     }
-    append(value) {
+    /** @param { import('./Hypermap.js').Value } value */ append(value) {
         this.array.push(value);
     }
-    set(index, value) {
+    /**
+	 * @param { number } index
+	 * @param { import('./Hypermap.js').Value } value
+	 * */ set(index, value) {
         this.array[index] = value;
     }
-    insert(index, value) {
+    /**
+	 * @param { number } index
+	 * @param { import('./Hypermap.js').Value } value
+	 * */ insert(index, value) {
         this.array.splice(index, 0, value);
     }
-    delete(index) {
+    /**
+	 * @param { number } index
+	 * */ delete(index) {
         this.array.splice(index, 1);
     }
     parent() {
         return this.#parent;
     }
-    children() {
-        return this.array.filter((value)=>value.isCollection && value.isCollection());
+    /** @returns { import('./Hypermap.js').Node[] } */ children() {
+        const nodeArray = this.array.filter((value)=>Hyperlist.isHyperlist(value) || _Hypermap.default.isHypermap(value));
+        return /** @type { import('./Hypermap.js').Node[] } */ nodeArray;
     }
-    path() {
+    /** @returns { (string|number)[] } */ path() {
         if (this.parent() === null) {
             return [];
         } else {
-            return this.parent().path().concat(this.parent().keyFor(this));
+            const key = /** @type { number } */ this.parent().keyFor(this);
+            return this.parent().path().concat(key);
         }
     }
-    async $(key, values) {
-        const node = this.at(key);
+    /**
+	 * @param { string } key 
+	 * @param { unknown } values 
+	 */ async $(key, values) {
+        const unknownVal = this.at(key);
+        if (!_Hypermap.default.isHypermap(unknownVal)) {
+            return;
+        }
+        const hypermap = /** @type { Hypermap } */ unknownVal;
         if (values) {
             Object.entries(values).forEach(([key, value])=>{
-                node.set(key, value);
+                hypermap.set(key, value);
             });
         }
-        await node.fetch();
+        await hypermap.fetch();
     }
-    isCollection() {
-        return true;
-    }
-    keyFor(node) {
-        this.array.indexOf(node);
+    /** @param { import('./Hypermap.js').Node } node */ keyFor(node) {
+        return this.array.indexOf(node);
     }
     toJSON() {
         return this.array;

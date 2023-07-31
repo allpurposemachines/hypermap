@@ -1,11 +1,25 @@
 import { isMap } from './utils/json_processing.js';
 import Hyperlist from './Hyperlist.js';
 
+/** @typedef { {href?: string, method?: string, rels?: string[], script?: string} } Attributes */
+/** @typedef { null | boolean | number | string } ValueLiteral */
+/** @typedef { Record<string, unknown> } HypermapLiteral */
+/** @typedef { unknown[] } HyperlistLiteral */
+/** @typedef { Hypermap | Hyperlist } Node */
+/** @typedef { Node | ValueLiteral } Value */
+
 export default class Hypermap extends EventTarget {
+	/** @type { Attributes } */
 	attributes;
 	map;
+	/** @type { Node | null } */
 	#parent;
 
+	/**
+	 * @param { object } data
+	 * @param { Attributes } attributes
+	 * @param { Node | null } parent
+	 */
 	constructor(data, attributes, parent) {
 		super();
 		this.map = new Map(Object.entries(data));
@@ -13,18 +27,36 @@ export default class Hypermap extends EventTarget {
 		this.#parent = parent;
 	}
 
+	/** @param { unknown } value */
+	static isHypermap(value) {
+		return value instanceof Hypermap;
+	}
+
+	/**
+	 * @param { HypermapLiteral } object
+	 * @param { Node | null } parent
+	 */
 	static fromLiteral(object, parent = null) {
-		const attributes = object['@'] || {};
+		/** @type { Attributes } */
+		const attributes = object['@'] ?? {};
 		delete object['@'];
 
 		let hypermap = new this(object, attributes, parent);
-		hypermap.forEach((value, key) => {
-			if (isMap(value)) {
-				hypermap.map.set(key, this.fromLiteral(value, hypermap));
-			} else if (Array.isArray(value)) {
-				hypermap.map.set(key, Hyperlist.fromLiteral(value, hypermap));
+		hypermap.forEach(
+			/**
+			 * @param { string } key
+			 * @param { unknown } value
+			*/
+			(value, key) => {
+				if (isMap(value)) {
+					const hypermapLiteral = /** @type { HypermapLiteral } */ (value);
+					hypermap.map.set(key, this.fromLiteral(hypermapLiteral, hypermap));
+				} else if (Array.isArray(value)) {
+					const hyperlistLiteral = /** @type { HyperlistLiteral } */ (value);
+					hypermap.map.set(key, Hyperlist.fromLiteral(hyperlistLiteral, hypermap));
+				}
 			}
-		});
+		);
 		return hypermap;
 	}
 
@@ -33,6 +65,7 @@ export default class Hypermap extends EventTarget {
 			try {
 				await import(this.attributes.script);
 			} catch(err) {
+				// @ts-expect-error: err is fine
 				console.log(`Error importing script at ${this.attributes.script}`, err.message);
 			}
 		}
@@ -47,6 +80,10 @@ export default class Hypermap extends EventTarget {
 	}
 
 	async fetch() {
+		if (this.attributes.href === null || this.attributes.href === undefined) {
+			return Promise.reject('No href');
+		}
+
 		const method = this.attributes.method || 'get';
 		const url = new URL(this.attributes.href, window.location.href);
 
@@ -63,6 +100,7 @@ export default class Hypermap extends EventTarget {
 			'Content-Type': 'application/json'
 		};
 
+		/** @type { Record<string, Value> } */
 		const body = {};
 		this.forEach((value, key) => {
 			body[key] = value;
@@ -76,6 +114,10 @@ export default class Hypermap extends EventTarget {
 		}
 	}
 
+	/**
+	 * @param { string } key
+	 * @param { Record<string, Value>= } values
+	*/
 	async $(key, values) {
 		const node = this.at(key);
 		if (values) {
@@ -86,15 +128,18 @@ export default class Hypermap extends EventTarget {
 		await node.fetch();
 	}
 
-	forEach(callbackfn) {
-		this.map.forEach(callbackfn);
+	/** @param { (value: Value, key: string) => void } callback */
+	forEach(callback) {
+		this.map.forEach(callback);
 	}
 
+	/** @param { (string|number)[] } path */
 	at(...path) {
 		if (path.length === 0) {
 			return this;
 		}
 		
+		// @ts-expect-error
 		const head = this.map.get(path.at(0));
 		if (head === undefined || (path.length > 1 && typeof head.at !== 'function')) {
 			return undefined;
@@ -111,19 +156,24 @@ export default class Hypermap extends EventTarget {
 		return this.#parent;
 	}
 
+	/** @returns { Node[] } */
 	children() {
 		return [...this.map.values()]
 			.filter(value => value.isCollection && value.isCollection());
 	}
 	
+	/** @returns { (string|number)[] } */
 	path() {
 		if (this.parent() === null) {
 			return [];
 		} else {
-			return this.parent().path().concat(this.parent().keyFor(this));
+			const parent = /** @type { Node } */(this.parent());
+			const key = /** @type { string } */(parent.keyFor(this));
+			return parent.path().concat(key);
 		}
 	}
 
+	/** @param { Hypermap | Hyperlist } node */
 	keyFor(node) {
 		for (const [key, value] of this.map) {
 			if (value === node) {
@@ -134,10 +184,15 @@ export default class Hypermap extends EventTarget {
 		return undefined;
 	}
 
+	/** @param { string } key */
 	has(key) {
 		return this.map.has(key);
 	}
 
+	/**
+	 * @param { string } key
+	 * @param { Value } value
+	 */
 	set(key, value) {
 		this.map.set(key, value);
 		if (window) {
@@ -149,6 +204,7 @@ export default class Hypermap extends EventTarget {
 		return this;
 	}
 
+	/** @param { string } key */
 	delete(key) {
 		this.map.delete(key);
 	}
@@ -157,6 +213,7 @@ export default class Hypermap extends EventTarget {
 		return this.map.keys();
 	}
 
+	/** @param { Hypermap } otherHypermap */
 	replace(otherHypermap) {
 		this.map = otherHypermap.map;
 		return this;
@@ -171,12 +228,14 @@ export default class Hypermap extends EventTarget {
 	}
 
 	async fetchTransclusion() {
-		const response = await fetch(this.attributes.href);
-		const json = await response.json();
-		// Todo: should handle scripts and sub-transclusions
-		// @ts-expect-error
-		const newNode = this.constructor.fromLiteral(json);
-		this.replace(newNode);
+		if (this.attributes.href) {
+			const response = await fetch(this.attributes.href);
+			const json = await response.json();
+			// Todo: should handle scripts and sub-transclusions
+			// @ts-expect-error
+			const newNode = this.constructor.fromLiteral(json);
+			this.replace(newNode);
+		}
 	}
 
 	toJSON() {

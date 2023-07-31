@@ -2,7 +2,8 @@ import puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import Tab from './Tab.js';
 
-export class Mech {
+export default class Mech {
+	/** @type { puppeteer.Browser= } */
 	#browser;
 
 	static async launch() {
@@ -11,8 +12,13 @@ export class Mech {
 		return mech;
 	}
 
+	/** @param { { debug?: boolean } } options */
 	async newTab(options = {}) {
-		const page = await this.#browser?.newPage();
+		if (!this.#browser) {
+			throw new Error('Mech not launched yet');
+		}
+
+		const page = await this.#browser.newPage();
 
 		if (options.debug) {
 			await page.setRequestInterception(true);
@@ -39,3 +45,5 @@ export class Mech {
 		await this.#browser?.close();
 	}
 }
+
+export { Tab };
