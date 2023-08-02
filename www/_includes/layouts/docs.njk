@@ -1,0 +1,12 @@
+---
+layout: ./base.njk
+---
+
+<main class="mx-auto max-w-screen-xl px-2 py-8 md:grid grid-cols-4">
+	<div class="col-span-1">
+		{% include "partials/sidebar.njk" %}
+	</div>
+	<article class="prose col-span-3">
+		{{ content | safe }}
+	</article>
+</main>

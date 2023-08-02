@@ -1,4 +1,8 @@
-# Getting Started with HyperMap
+---
+layout: layouts/docs.njk
+---
+
+# Getting Started
 
 HyperMap is an API standard for services that are easier to build and use than services with normal REST interfaces.
 
