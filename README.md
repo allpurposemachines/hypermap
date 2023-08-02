@@ -14,9 +14,9 @@ Both the HyperMap standard and Mech are in prototype stage. Expect significant c
 
 ## Getting started
 
-Take a look at the tutorial in `/docs`, the server in `/example_server`, and `/mech/tests/test.js`.
+Take a look at the [documentation](https://docs.allpurposemachines.com/), the server in `/example_server`, and `/mech/tests/test.js`.
 
-There is a hosted verison of the example server at [https://hypermap-example.deno.dev/](https://hypermap-example.deno.dev/). To run the example locally install [Deno](https://deno.com/runtime) and then run:
+There is a hosted verison of the example server at [https://services.allpurposemachines.com/](https://services.allpurposemachines.com/). To run the example locally install [Deno](https://deno.com/runtime) and then run:
 
 ```sh
 $ deno run --allow-net --allow-read --watch=. example_server/app.ts
