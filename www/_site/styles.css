@@ -1139,6 +1139,9 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(34 197 94 / var(--tw-bg-opacity));
 }
+.hover\:underline:hover {
+  text-decoration-line: underline;
+}
 .prose-pre\:rounded-none :is(:where(pre):not(:where([class~="not-prose"] *))) {
   border-radius: 0px;
 }
