@@ -86,9 +86,7 @@ Let's use Mech to connect to our service and inpsect our todos:
 ```javascript
 import { Mech } from '@allpurposemachines/mech';
 
-const mech = await Mech.launch();
-const todosTab = await mech.newTab();
-await todosTab.goto('localhost:8000/');
+const todosTab = await Mech.open('localhost:8000/');
 
 console.log(todosTab.at('todos').length()); // Output: 1
 console.log(todosTab.at('todos', 0, 'title')); // Output: "Learn HyperMap"
@@ -102,7 +100,7 @@ The service currently has two resources: a list of all todos, and the todos them
 Let's take a look at a single todo:
 
 ```sh
-$ curl localhost:8000/todos/5J0rwwsyh | jq
+% curl localhost:8000/todos/5J0rwwsyh | jq
 {
   "title": "Learn HyperMap",
   "completed": false,
@@ -113,7 +111,7 @@ $ curl localhost:8000/todos/5J0rwwsyh | jq
 ```
 
 There's some additional timestamp information that's not in the index view that we'd like to read.
-Right now, there's no connection from the index view to the individual todos, so if we want to see that information in Mech we'd need to parse the "id" from the index view, construct a new URL with that "id" and then `goto` to the new URL. But there's a simpler way:
+Right now, there's no connection from the index view to the individual todos, so if we want to see that information in Mech we'd need to parse the "id" from the index view, construct a new URL with that "id" and then `open` to the new URL. But there's a simpler way:
 
 ```sh
 % curl localhost:8000/ | jq
@@ -164,7 +162,7 @@ If it's a method which sends a body, like `PUT` or `POST`, the inner content of 
 ```
 
 ```javascript
-await todosTab.goto('localhost:8000/');
+await todosTab.open('localhost:8000/');
 await todosTab.$('newTodo', { title: 'Add HyperMap to all my APIs' });
 ```
 

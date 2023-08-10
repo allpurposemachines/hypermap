@@ -105,9 +105,7 @@ HyperMap introduces another option: use Mech. It's a client (or user agent) for 
 <p>Let's use Mech to connect to our service and inpsect our todos:</p>
 <pre><code class="language-javascript">import { Mech } from '@allpurposemachines/mech';
 
-const mech = await Mech.launch();
-const todosTab = await mech.newTab();
-await todosTab.goto('localhost:8000/');
+const todosTab = await Mech.open('localhost:8000/');
 
 console.log(todosTab.at('todos').length()); // Output: 1
 console.log(todosTab.at('todos', 0, 'title')); // Output: &quot;Learn HyperMap&quot;
@@ -116,7 +114,7 @@ console.log(todosTab.at('todos', 0, 'title')); // Output: &quot;Learn HyperMap&q
 <h2>Controls</h2>
 <p>The service currently has two resources: a list of all todos, and the todos themselves.
 Let's take a look at a single todo:</p>
-<pre><code class="language-sh">$ curl localhost:8000/todos/5J0rwwsyh | jq
+<pre><code class="language-sh">% curl localhost:8000/todos/5J0rwwsyh | jq
 {
   &quot;title&quot;: &quot;Learn HyperMap&quot;,
   &quot;completed&quot;: false,
@@ -126,7 +124,7 @@ Let's take a look at a single todo:</p>
 }
 </code></pre>
 <p>There's some additional timestamp information that's not in the index view that we'd like to read.
-Right now, there's no connection from the index view to the individual todos, so if we want to see that information in Mech we'd need to parse the &quot;id&quot; from the index view, construct a new URL with that &quot;id&quot; and then <code>goto</code> to the new URL. But there's a simpler way:</p>
+Right now, there's no connection from the index view to the individual todos, so if we want to see that information in Mech we'd need to parse the &quot;id&quot; from the index view, construct a new URL with that &quot;id&quot; and then <code>open</code> to the new URL. But there's a simpler way:</p>
 <pre><code class="language-sh">% curl localhost:8000/ | jq
 {
   &quot;todos&quot;: [
@@ -167,7 +165,7 @@ If it's a method which sends a body, like <code>PUT</code> or <code>POST</code>,
   }
 }
 </code></pre>
-<pre><code class="language-javascript">await todosTab.goto('localhost:8000/');
+<pre><code class="language-javascript">await todosTab.open('localhost:8000/');
 await todosTab.$('newTodo', { title: 'Add HyperMap to all my APIs' });
 </code></pre>
 <h2>Scripts</h2>
