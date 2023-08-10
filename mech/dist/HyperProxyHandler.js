@@ -5,7 +5,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 Object.defineProperty(exports, "default", {
     enumerable: true,
-    get: ()=>HyperProxyHandler
+    get: function() {
+        return HyperProxyHandler;
+    }
 });
 const _Hypermap = /*#__PURE__*/ _interop_require_default(require("./Hypermap.js"));
 const _Hyperlist = /*#__PURE__*/ _interop_require_default(require("./Hyperlist.js"));

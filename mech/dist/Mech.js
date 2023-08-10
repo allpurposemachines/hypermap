@@ -9,8 +9,12 @@ function _export(target, all) {
     });
 }
 _export(exports, {
-    Mech: ()=>Mech,
-    Tab: ()=>_Tab.Tab
+    Mech: function() {
+        return Mech;
+    },
+    Tab: function() {
+        return _Tab.Tab;
+    }
 });
 const _puppeteer = /*#__PURE__*/ _interop_require_default(require("puppeteer"));
 const _fs = /*#__PURE__*/ _interop_require_wildcard(require("fs"));

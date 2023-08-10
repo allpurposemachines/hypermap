@@ -4,7 +4,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 Object.defineProperty(exports, "isMap", {
     enumerable: true,
-    get: ()=>isMap
+    get: function() {
+        return isMap;
+    }
 });
 const isMap = (value)=>{
     return typeof value === 'object' && value !== null && !Array.isArray(value);

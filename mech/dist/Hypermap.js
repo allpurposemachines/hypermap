@@ -4,7 +4,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 Object.defineProperty(exports, /** @typedef { {href?: string, method?: string, rels?: string[], script?: string} } Attributes */ /** @typedef { null | boolean | number | string } ValueLiteral */ /** @typedef { Record<string, unknown> } HypermapLiteral */ /** @typedef { unknown[] } HyperlistLiteral */ /** @typedef { Hypermap | Hyperlist } Node */ /** @typedef { Node | ValueLiteral } Value */ "default", {
     enumerable: true,
-    get: ()=>Hypermap
+    get: function() {
+        return Hypermap;
+    }
 });
 const _json_processing = require("./utils/json_processing.js");
 const _Hyperlist = /*#__PURE__*/ _interop_require_default(require("./Hyperlist.js"));

@@ -4,7 +4,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 Object.defineProperty(exports, "default", {
     enumerable: true,
-    get: ()=>Hyperlist
+    get: function() {
+        return Hyperlist;
+    }
 });
 const _Hypermap = /*#__PURE__*/ _interop_require_default(require("./Hypermap.js"));
 const _json_processing = require("./utils/json_processing.js");

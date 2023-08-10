@@ -4,7 +4,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 Object.defineProperty(exports, "Tab", {
     enumerable: true,
-    get: ()=>Tab
+    get: function() {
+        return Tab;
+    }
 });
 const _nodeevents = require("node:events");
 const _Hypermap = /*#__PURE__*/ _interop_require_default(require("./Hypermap.js"));
