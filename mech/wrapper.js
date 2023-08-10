@@ -1,3 +1,3 @@
 import cjsModule from './dist/Mech.js';
-const Mech = cjsModule.default;
-export default Mech;
+export const Mech = cjsModule.Mech;
+export const Tab = cjsModule.Tab;

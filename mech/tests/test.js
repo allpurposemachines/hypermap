@@ -1,29 +1,30 @@
 import test from 'node:test';
 import assert from 'assert';
-import Mech from '../wrapper.js';
 import mockTodoServer from './mockTodoServer.js';
+
+import { Mech } from '../wrapper.js';
 
 const baseUrl = 'http://localhost/';
 const mockServer = mockTodoServer(baseUrl);
 const handleRequest = mockServer.handleRequest;
 
-test('Given a tab', async (t) => {
-	const mech = await Mech.launch();
-	const tab = await mech.newTab({debug: true});
-	// @ts-ignore
-	tab.page.on('request', request => handleRequest(request));
+Mech.debug = true;
+/** @param { import('puppeteer').HTTPRequest } request */
+Mech.debugRequestHandler = request => handleRequest(request);
+const tab = await Mech.open(baseUrl);
 
-	t.afterEach(() => mockServer.reset());
+test('Given a tab', async (t) => {
+
+	t.afterEach(async () => {
+		mockServer.reset()
+		await tab.open(baseUrl);
+	});
 
 	await t.test('Direct navigation', async () => {
-		await tab.goto(baseUrl, { waitUntil: 'networkidle0' });
-		
 		assert.strictEqual(tab.url(), baseUrl);
 	});
 	
 	await t.test('Load a basic HyperMap', async () => {
-		await tab.goto(baseUrl);
-
 		assert.strictEqual(tab.hypermap?.at('completed'), 0);
 		assert.strictEqual(tab.hypermap?.at('todos').length(), 1);
 		assert.strictEqual(tab.hypermap?.has('newTodo'), true);
@@ -31,7 +32,7 @@ test('Given a tab', async (t) => {
 	});
 
 	await t.test('Navigate the hierarchy', async () => {
-		await tab.goto(baseUrl + 'deep/');
+		await tab.open(baseUrl + 'deep/');
 
 		assert.deepStrictEqual(tab.hypermap?.path(), []);
 		assert.deepStrictEqual(tab.hypermap?.at('one', 'two', 'three').path(), ['one', 'two', 'three']);
@@ -42,7 +43,6 @@ test('Given a tab', async (t) => {
 	});
 	
 	await t.test('Follow a link', async () => {
-		await tab.goto(baseUrl);
 		await tab.hypermap?.at('todos').$(0);
 		
 		await tab.syncData();
@@ -52,8 +52,6 @@ test('Given a tab', async (t) => {
 	
 	await t.test('Use a control', async () => {
 		const newTitle = 'Buy cheese';
-		await tab.goto(baseUrl);
-
 		await tab.hypermap?.$('newTodo', { title: newTitle });
 		
 		assert.strictEqual(tab.hypermap?.at('todos').length(), 2);
@@ -61,27 +59,27 @@ test('Given a tab', async (t) => {
 	});
 	
 	await t.test('Load a script', async () => {
-		await tab.goto(baseUrl + 'scripts/', { waitUntil: 'networkidle0' });
+		await tab.open(baseUrl + 'scripts/');
 		
 		assert.strictEqual(tab.hypermap?.at('foo'), 'bar');
 	});
 
 	await t.test('Handle an event (script to script)', async () => {
-		await tab.goto(baseUrl + 'scripts/', { waitUntil: 'networkidle0' });
+		await tab.open(baseUrl + 'scripts/');
 		await tab.hypermap?.set('input', 'test');
 
 		assert.strictEqual(tab.hypermap?.at('output'), 1);
 	});
 
 	await t.test('Mainpulate nodes with a script', async () => {
-		await tab.goto(baseUrl + 'scripts/', { waitUntil: 'networkidle0'});
+		await tab.open(baseUrl + 'scripts/');
 		
 		assert.deepStrictEqual(tab.hypermap?.at('list').toJSON(), ['first', 'middle1', 'middle2', 'last']);
 		assert.strictEqual(tab.hypermap?.has('bad'), false);
 	});
 
 	await t.test('Load a document with transclusions', async () => {
-		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
+		await tab.open(baseUrl + 'transclude/');
 
 		assert.strictEqual(tab.hypermap?.at('todos').has('completed'), true);
 		// Node strictEqual considers 0 === undefined?!
@@ -89,7 +87,8 @@ test('Given a tab', async (t) => {
 	});
 
 	await t.test('Fetching a transcluded node', async () => {
-		await tab.goto(baseUrl + 'transclude/', { waitUntil: 'networkidle0'});
+		await tab.open(baseUrl + 'transclude/');
+
 		assert.strictEqual(tab.hypermap?.at('counter', 'count'), 0);
 
 		await tab.hypermap?.$('counter');
@@ -97,5 +96,5 @@ test('Given a tab', async (t) => {
 		assert.strictEqual(tab.hypermap?.at('counter', 'count'), 1);
 	});
 
-	await mech.close();
+	await Mech.close();
 });

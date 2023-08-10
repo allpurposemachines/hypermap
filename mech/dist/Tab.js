@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "default", {
+Object.defineProperty(exports, "Tab", {
     enumerable: true,
     get: ()=>Tab
 });
@@ -32,9 +32,14 @@ class Tab extends _nodeevents.EventEmitter {
     /**
 	 * @param { string } url
 	 * @param { import('puppeteer').WaitForOptions= } options
-	*/ async goto(url, options = {}) {
+	*/ async open(url, options = {
+        waitUntil: 'networkidle0'
+    }) {
         await this.page.goto(url, options);
         await this.syncData();
+    }
+    async close() {
+        await this.page.close();
     }
     url() {
         return this.page.url();

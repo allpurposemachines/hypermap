@@ -9,12 +9,12 @@ function _export(target, all) {
     });
 }
 _export(exports, {
-    default: ()=>Mech,
-    Tab: ()=>_Tab.default
+    Mech: ()=>Mech,
+    Tab: ()=>_Tab.Tab
 });
 const _puppeteer = /*#__PURE__*/ _interop_require_default(require("puppeteer"));
 const _fs = /*#__PURE__*/ _interop_require_wildcard(require("fs"));
-const _Tab = /*#__PURE__*/ _interop_require_default(require("./Tab.js"));
+const _Tab = require("./Tab.js");
 function _interop_require_default(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -59,21 +59,21 @@ function _interop_require_wildcard(obj, nodeInterop) {
     }
     return newObj;
 }
-class Mech {
-    /** @type { puppeteer.Browser= } */ #browser;
-    static async launch() {
-        const mech = new Mech();
-        mech.#browser = await _puppeteer.default.launch();
-        return mech;
-    }
-    /** @param { { debug?: boolean } } options */ async newTab(options = {}) {
-        if (!this.#browser) {
-            throw new Error('Mech not launched yet');
+const Mech = {
+    debug: false,
+    debugRequestHandler: null,
+    /** @type { puppeteer.Browser | null } */ browser: null,
+    /** @param { string } url */ async open (url) {
+        if (!this.browser) {
+            this.browser = await _puppeteer.default.launch();
         }
-        const page = await this.#browser.newPage();
-        if (options.debug) {
+        const page = await this.browser.newPage();
+        if (this.debug) {
             await page.setRequestInterception(true);
             page.on('console', (msg)=>console.log('PAGE LOG:', msg.text()));
+            if (this.debugRequestHandler) {
+                page.on('request', this.debugRequestHandler);
+            }
         }
         await page.exposeFunction('contentChanged', ()=>{
             page.emit('contentchanged');
@@ -82,14 +82,16 @@ class Mech {
         page.on('load', async ()=>{
             await page.evaluate(shim);
         });
-        return new _Tab.default(page);
+        const tab = new _Tab.Tab(page);
+        await tab.open(url); //), { waitUntil: 'networkidle0' });
+        return tab;
+    },
+    async tabs () {
+        return await this.browser?.pages();
+    },
+    async close () {
+        await this.browser?.close();
     }
-    async tabs() {
-        return await this.#browser?.pages();
-    }
-    async close() {
-        await this.#browser?.close();
-    }
-}
+};
 
 //# sourceMappingURL=Mech.js.map

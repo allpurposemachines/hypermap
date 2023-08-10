@@ -1,28 +1,27 @@
 import puppeteer from 'puppeteer';
 import * as fs from 'fs';
-import Tab from './Tab.js';
+import { Tab } from './Tab.js';
 
-export default class Mech {
-	/** @type { puppeteer.Browser= } */
-	#browser;
+const Mech = {
+	debug: false,
+	debugRequestHandler: null,
+	/** @type { puppeteer.Browser | null } */
+	browser: null,
 
-	static async launch() {
-		const mech = new Mech();
-		mech.#browser = await puppeteer.launch();
-		return mech;
-	}
-
-	/** @param { { debug?: boolean } } options */
-	async newTab(options = {}) {
-		if (!this.#browser) {
-			throw new Error('Mech not launched yet');
+	/** @param { string } url */
+	async open(url) {
+		if (!this.browser) {
+			this.browser = await puppeteer.launch();
 		}
 
-		const page = await this.#browser.newPage();
-
-		if (options.debug) {
+		const page = await this.browser.newPage();
+		
+		if (this.debug) {
 			await page.setRequestInterception(true);
 			page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+			if (this.debugRequestHandler) {
+				page.on('request', this.debugRequestHandler);
+			}
 		}
 
 		await page.exposeFunction('contentChanged', () => {
@@ -34,16 +33,18 @@ export default class Mech {
 			await page.evaluate(shim);
 		});
 
-		return new Tab(page);
-	}
+		const tab = new Tab(page);
+		await tab.open(url); //), { waitUntil: 'networkidle0' });
+		return tab;
+	},
 
 	async tabs() {
-		return await this.#browser?.pages();
-	}
+		return await this.browser?.pages();
+	},
 
 	async close() {
-		await this.#browser?.close();
+		await this.browser?.close();
 	}
 }
 
-export { Tab };
+export { Mech, Tab };

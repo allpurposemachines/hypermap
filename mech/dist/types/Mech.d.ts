@@ -1,14 +1,13 @@
-export default class Mech {
-    static launch(): Promise<Mech>;
-    /** @param { { debug?: boolean } } options */
-    newTab(options?: {
-        debug?: boolean;
-    }): Promise<Tab>;
-    tabs(): Promise<puppeteer.Page[] | undefined>;
-    close(): Promise<void>;
-    #private;
+export namespace Mech {
+    let debug: boolean;
+    let debugRequestHandler: null;
+    let browser: puppeteer.Browser | null;
+    /** @param { string } url */
+    function open(url: string): Promise<Tab>;
+    function tabs(): Promise<puppeteer.Page[] | undefined>;
+    function close(): Promise<void>;
 }
-export { Tab };
-import Tab from './Tab.js';
+import { Tab } from './Tab.js';
 import puppeteer from 'puppeteer';
+export { Tab };
 //# sourceMappingURL=Mech.d.ts.map

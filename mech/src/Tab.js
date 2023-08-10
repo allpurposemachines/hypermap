@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import Hypermap from './Hypermap.js';
 import HyperProxyHandler from './HyperProxyHandler.js';
 
-export default class Tab extends EventEmitter {
+export class Tab extends EventEmitter {
 	/** @type { import('puppeteer').Page } */
 	page;
 	/** @type { Hypermap | null } */
@@ -28,9 +28,13 @@ export default class Tab extends EventEmitter {
 	 * @param { string } url
 	 * @param { import('puppeteer').WaitForOptions= } options
 	*/
-	async goto(url, options = {}) {
+	async open(url, options = { waitUntil: 'networkidle0' }) {
 		await this.page.goto(url, options);
 		await this.syncData();
+	}
+
+	async close() {
+		await this.page.close();
 	}
 
 	url() {

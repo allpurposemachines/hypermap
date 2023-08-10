@@ -1,4 +1,4 @@
-export default class Tab extends EventEmitter {
+export class Tab extends EventEmitter {
     /** @param { import('puppeteer').Page } page */
     constructor(page: import('puppeteer').Page);
     /** @type { import('puppeteer').Page } */
@@ -9,7 +9,8 @@ export default class Tab extends EventEmitter {
      * @param { string } url
      * @param { import('puppeteer').WaitForOptions= } options
     */
-    goto(url: string, options?: import('puppeteer').WaitForOptions | undefined): Promise<void>;
+    open(url: string, options?: import('puppeteer').WaitForOptions | undefined): Promise<void>;
+    close(): Promise<void>;
     url(): string;
     syncData(): Promise<void>;
 }
