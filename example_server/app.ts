@@ -35,9 +35,7 @@ router
 			'@': {
 				script: '/sentiment.js'
 			},
-			input: {
-				text: null
-			},
+			input: null,
 			sentiment: null
 		};
 		ctx.response.body = { nav, ...body };
