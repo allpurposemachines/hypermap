@@ -30,21 +30,29 @@
 
 	<main class="mx-auto max-w-screen-xl px-2 py-8 md:grid grid-cols-4">
 	<div class="col-span-1">
-		<ul class="text-lg">
-	<li>
-		<a class="hover:underline" href="/">About HyperMap and Mech</a>
-	</li>
-	<li>
-		<a class="hover:underline" href="/getting_started/">Getting Started</a>
-	</li>
-<ul>
+		<nav class="text-lg mb-8">
+	<h2 class="font-semibold">Overview</h2>
+	<ul class="ml-2">
+		<li>
+			<a class="hover:underline" href="/">Getting Started</a>
+		</li>
+		<li>
+			<a class="hover:underline" href="/about/">About HyperMap and Mech</a>
+		</li>
+	</ul>
+	<h2 class="font-semibold">Guides</h2>
+	<ul class="ml-2">
+		<li>
+			<a class="hover:underline" href="/converting-an-api/">Converting an API</a>
+		</li>
+	<ul>
+</nav>
 
 	</div>
 	<article class="prose prose-lg prose-pre:p-0 prose-pre:rounded-none col-span-3">
-		<h1>Getting Started</h1>
-<p>HyperMap is an API standard for services that are easier to build and use than services with normal REST interfaces.</p>
-<p>It's designed to be straightforward to take your existing APIs and progressively enhance them.
-This tutorial will walk through the process of refactoring a simple todo service with a couple of resources:</p>
+		<h1>Converting an API to HyperMap</h1>
+<p>HyperMap is designed to be straightforward to take your existing APIs and progressively enhance them.
+This tutorial will walk through the process of refactoring a simple, traditional RESTful todo service with a couple of resources:</p>
 <ul>
 <li><code>/todos/</code> — GET, POST</li>
 <li><code>/todos/:id</code> — GET, PATCH, DELETE</li>

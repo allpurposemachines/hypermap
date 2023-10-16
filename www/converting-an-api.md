@@ -2,12 +2,10 @@
 layout: layouts/docs.njk
 ---
 
-# Getting Started
+# Converting an API to HyperMap
 
-HyperMap is an API standard for services that are easier to build and use than services with normal REST interfaces.
-
-It's designed to be straightforward to take your existing APIs and progressively enhance them.
-This tutorial will walk through the process of refactoring a simple todo service with a couple of resources:
+HyperMap is designed to be straightforward to take your existing APIs and progressively enhance them.
+This tutorial will walk through the process of refactoring a simple, traditional RESTful todo service with a couple of resources:
 
 - `/todos/` — GET, POST
 - `/todos/:id` — GET, PATCH, DELETE

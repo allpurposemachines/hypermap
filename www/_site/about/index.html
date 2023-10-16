@@ -50,19 +50,24 @@
 
 	</div>
 	<article class="prose prose-lg prose-pre:p-0 prose-pre:rounded-none col-span-3">
-		<h1>Introduction</h1>
-<p>HyperMap and Mech form a new stack for RESTful APIs. They let you run JavaScript or
-WebAssembly on the client, which can massively simplify the documentation and integration for modern, sophisticated APIs. Using HyperMap and Mech you can do things like:</p>
+		<h1>About HyperMap and Mech</h1>
+<h2>HyperMap</h2>
+<p>HyperMap is a simple standard for making REST resources living, computational objects, capable of using the full set of Web APIs.</p>
+<p>HyperMap is designed to be:</p>
 <ul>
-<li>Eliminate Webhooks</li>
-<li>Unify JSON and WebSocket APIs</li>
-<li>Move privacy-preserving data analytics to the client</li>
+<li>Simple to adopt for existing REST APIs (just change the <code>Content-Type</code>)</li>
+<li>Easy to program, adding only a small set of attributes to JSON and allowing scripting with a mini DOM-like model</li>
+<li>Part of the Web ecosystem, capable of importing ESM modules that don't rely on the HTML DOM</li>
 </ul>
-<p>And much more.</p>
-<h2>Getting Started</h2>
-<p><a href="https://marketplace.visualstudio.com/items?itemName=all-purpose-machines.apm-explorer">APM Explorer is a Visual Studio Code extension</a> for interacting with HyperMap services and generating stub Mech integration code. While not mandatory, it's a great way to start exploring HyperMap.</p>
-<p>Then, read <a href="/converting-an-api/">the guide to converting an existing API to HyperMap</a> for an introduction to the main HyperMap and Mech features.</p>
-<p>Finally, take a look at <a href="https://github.com/allpurposemachines/hypermap/tree/main/example_server">the example server</a> for a working HyperMap service which showcases a number of HyperMap features.</p>
+<h2>Mech</h2>
+<p>Mech is a universal client for all HyperMap services. Just as a Web browser allows a human to interact with any Web site, Mech allows programs to interact with any HyperMap service.</p>
+<p>The goal is to provide an idiomatic, no-boilerplate experience in all langauges and environments.</p>
+<p>Mech is built as a collection of front-end langauge bindings and back-end browser contexts with a HyperMap shim. The current prototype is a JavaScript (with TypeScript type declarations) front-end with a headless Chrome back-end. Other back-ends are planned:</p>
+<ul>
+<li>iFrames to run in Web browsers</li>
+<li>Webviews to run in iOS or sandboxed Mac apps</li>
+<li>An in-memory, embeddable library (possibly built on <a href="https://servo.org">Servo</a>)</li>
+</ul>
 
 	</article>
 </main>

@@ -2,25 +2,21 @@
 layout: layouts/docs.njk
 ---
 
-# About HyperMap and Mech
+# Introduction
 
-## HyperMap
+HyperMap and Mech form a new stack for RESTful APIs. They let you run JavaScript or
+WebAssembly on the client, which can massively simplify the documentation and integration for modern, sophisticated APIs. Using HyperMap and Mech you can do things like:
 
-HyperMap is a simple standard for making REST resources living, computational objects, capable of using the full set of Web APIs.
+- Eliminate Webhooks
+- Unify JSON and WebSocket APIs
+- Move privacy-preserving data analytics to the client
 
-HyperMap is designed to be:
-* Simple to adopt for existing REST APIs (just change the `Content-Type`)
-* Easy to program, adding only a small set of attributes to JSON and allowing scripting with a mini DOM-like model
-* Part of the Web ecosystem, capable of importing ESM modules that don't rely on the HTML DOM
+And much more.
 
-## Mech
+## Getting Started
 
-Mech is a universal client for all HyperMap services. Just as a Web browser allows a human to interact with any Web site, Mech allows programs to interact with any HyperMap service.
+[APM Explorer is a Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=all-purpose-machines.apm-explorer) for interacting with HyperMap services and generating stub Mech integration code. While not mandatory, it's a great way to start exploring HyperMap.
 
-The goal is to provide an idiomatic, no-boilerplate experience in all langauges and environments.
+Then, read [the guide to converting an existing API to HyperMap](/converting-an-api/) for an introduction to the main HyperMap and Mech features.
 
-Mech is built as a collection of front-end langauge bindings and back-end browser contexts with a HyperMap shim. The current prototype is a JavaScript (with TypeScript type declarations) front-end with a headless Chrome back-end. Other back-ends are planned:
-
-* iFrames to run in Web browsers
-* Webviews to run in iOS or sandboxed Mac apps
-* An in-memory, embeddable library (possibly built on [Servo](https://servo.org))
+Finally, take a look at [the example server](https://github.com/allpurposemachines/hypermap/tree/main/example_server) for a working HyperMap service which showcases a number of HyperMap features.
