@@ -64,6 +64,11 @@ And that's it, we're done!
 Updating the content type and ensuring that the top-level of responses is an "object" are all you need to build a compliant HyperMap service.
 With that in place, we can start to take advantage of HyperMap's powerful features.
 
+## APM Explorer
+
+At this step, it's a good idea to install the [APM Explorer Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=all-purpose-machines.apm-explorer) which lets your explore and interact with your API as you develop.
+Once installed, open the extension sidebar and enter the URL of your running service into the address field.
+
 ## Mech
 
 There are two common ways to consume a REST API: manually hit HTTP endpoints and parse the JSON responses, or use a service-specific client (also known as a wrapper or SDK).
