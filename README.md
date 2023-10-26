@@ -105,7 +105,7 @@ There is a hosted verison of the example server at [https://services.allpurposem
 $ deno run --allow-net --allow-read --watch=. example_server/app.ts
 ```
 
-There is a [Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=all-purpose-machines.apm-explorer) for browsing HyperMap services and generated stub Mech code.
+There is a [Visual Studio Code extension](https://marketplace.visualstudio.com/items?itemName=all-purpose-machines.apm-explorer) for browsing HyperMap services and generating stub Mech code.
 
 Join our [Discord server](https://discord.gg/csYd9ZU6Ng) if you have any questions not
 covered in the documentation or hit any obstacles, or any feedback about how to make the
