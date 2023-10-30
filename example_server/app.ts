@@ -41,9 +41,9 @@ router
 		ctx.response.body = { nav, ...body };
 	})
 	.get('/stocks/', ctx => {
-		const buy = (ticker: string) => ({
+		const submitOrder = (ticker: string) => ({
 			'@': {
-				href: ticker + '/buy/',
+				href: ticker + '/order/',
 				method: 'post'
 			},
 			quantity: 0
@@ -57,19 +57,19 @@ router
 				ibm: {
 					ticker: 'IBM',
 					price: 100.0 + Math.random(),
-					buy: buy('IBM')
+					submitOrder: submitOrder('IBM')
 				},
 				msft: {
 					ticker: 'MSFT',
 					price: 200.0 + Math.random(),
-					buy: buy('MSFT')
+					submitOrder: submitOrder('MSFT')
 				}
 			}
 		};
 
 		ctx.response.body = { nav, ...body };
 	})
-	.post('/stocks/:ticker/buy/', async ctx => {
+	.post('/stocks/:ticker/order/', async ctx => {
 		const body = await ctx.request.body().value;
 		const data = {
 			ticker: ctx.params.ticker, ...body
@@ -78,8 +78,10 @@ router
 	})
 	.get('/stocks/:ticker/purchased/', ctx => {
 		const body = {
-			code: 'Success',
-			message: `Successfully purchased shares of ${ctx.params.ticker}`
+			'@': {
+				script: '/order.js'
+			},
+			status: 'submitted'
 		};
 
 		ctx.response.body = { nav, ...body };
