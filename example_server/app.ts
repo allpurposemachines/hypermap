@@ -85,6 +85,9 @@ router
 		};
 
 		ctx.response.body = { nav, ...body };
+	})
+	.get('/vscode_redirect/', ctx => {
+		ctx.response.redirect('vscode://all-purpose-machines.apm-explorer/foo?uri=https%3A%2F%2Fservices.allpurposemachines.com%2F');
 	});
 
 const app = new Application();
