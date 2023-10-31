@@ -33,7 +33,8 @@ router
 	.get('/sentiment/', ctx => {
 		const body = {
 			'@': {
-				script: '/sentiment.js'
+				script: '/sentiment.js',
+				editable: ['input']
 			},
 			input: null,
 			sentiment: null
