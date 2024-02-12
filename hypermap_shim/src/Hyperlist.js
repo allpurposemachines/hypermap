@@ -1,5 +1,5 @@
 import Hypermap from './Hypermap.js';
-import { isMap } from './utils/json_processing.js';
+import { isMap } from './utils.js';
 
 export default class Hyperlist extends EventTarget {
 	array;

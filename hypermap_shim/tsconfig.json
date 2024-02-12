@@ -13,5 +13,6 @@
 		"outDir": "dist/types",
 		"declarationMap": true
 	},
-	"include": ["./index.js", "./src/**/*"]
+	"include": ["./src/**/*"],
+	"exclude": ["./src/utils.js"]
 }

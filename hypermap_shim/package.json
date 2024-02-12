@@ -7,7 +7,7 @@
   "types": "./dist/types/index.d.ts",
   "scripts": {
     "test": "test",
-    "build": "esbuild ./index.js --bundle --outfile=./dist/index.js && tsc",
+    "build": "esbuild ./src/index.js --bundle --outfile=./dist/index.js && tsc",
     "prepare": "npm run build"
   },
   "author": "daniel@allpurposemachines.com",

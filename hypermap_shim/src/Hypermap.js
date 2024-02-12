@@ -1,4 +1,4 @@
-import { isMap } from './utils/json_processing.js';
+import { isMap } from './utils.js';
 import Hyperlist from './Hyperlist.js';
 
 /** @typedef { {href?: string, method?: string, rels?: string[], script?: string} } Attributes */

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import Hypermap from './src/Hypermap.js';
+import Hypermap from './Hypermap.js';
 
 const pre = document.body.querySelector('pre');
 if (pre) {
