@@ -3,8 +3,13 @@
 	"version": "0.0.3",
 	"description": "A shim for browsers to be able to parse and run HyperMap APIs",
 	"type": "module",
-	"main": "dist/index.js",
-	"types": "./dist/types/index.d.ts",
+	"exports": {
+		".": {
+			"browser": "./dist/index.js",
+			"default": "./src/Hypermap.js",
+			"types": "./dist/types/index.d.ts"
+		}
+	},
 	"scripts": {
 		"test": "test",
 		"build": "esbuild ./src/index.js --bundle --outfile=./dist/index.js && tsc",
