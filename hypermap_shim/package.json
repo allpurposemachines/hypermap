@@ -1,20 +1,25 @@
 {
-  "name": "@allpurposemachines/hypermap-shim",
-  "version": "0.0.1",
-  "description": "A shim for browsers to be able to parse and run HyperMap APIs",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "./dist/types/index.d.ts",
-  "scripts": {
-    "test": "test",
-    "build": "esbuild ./src/index.js --bundle --outfile=./dist/index.js && tsc",
-    "prepare": "npm run build"
-  },
-  "author": "daniel@allpurposemachines.com",
-  "license": "MIT",
-  "devDependencies": {
-    "@tsconfig/recommended": "^1.0.3",
-    "esbuild": "0.20.0",
-    "typescript": "^5.3.3"
-  }
+	"name": "@allpurposemachines/hypermap-shim",
+	"version": "0.0.1",
+	"description": "A shim for browsers to be able to parse and run HyperMap APIs",
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "./dist/types/index.d.ts",
+	"scripts": {
+		"test": "test",
+		"build": "esbuild ./src/index.js --bundle --outfile=./dist/index.js && tsc",
+		"prepare": "npm run build"
+	},
+	"author": "daniel@allpurposemachines.com",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/allpurposemachines/hypermap"
+	},
+	"homepage": "https://www.allpurposemachines.com",
+	"devDependencies": {
+		"@tsconfig/recommended": "^1.0.3",
+		"esbuild": "0.20.0",
+		"typescript": "^5.3.3"
+	}
 }
