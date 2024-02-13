@@ -8,7 +8,7 @@ import { Hyperlist } from './Hyperlist.js';
 /** @typedef { Hypermap | Hyperlist } Node */
 /** @typedef { Node | ValueLiteral } Value */
 
-export class Hypermap extends EventTarget {
+class Hypermap extends EventTarget {
 	/** @type { Attributes } */
 	attributes;
 	map;
@@ -250,3 +250,5 @@ export class Hypermap extends EventTarget {
 		return JSON.stringify(this, null, 2);
 	}
 }
+
+export { Hypermap, Hyperlist };
