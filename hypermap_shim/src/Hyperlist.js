@@ -1,7 +1,7 @@
-import Hypermap from './Hypermap.js';
+import { Hypermap } from './Hypermap.js';
 import { isMap } from './utils.js';
 
-export default class Hyperlist extends EventTarget {
+export class Hyperlist extends EventTarget {
 	array;
 	#parent;
 

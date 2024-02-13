@@ -1,5 +1,7 @@
 // @ts-nocheck
-import Hypermap from './Hypermap.js';
+import { Hypermap } from './Hypermap.js';
+import { Hyperlist } from './Hyperlist.js';
+export { Hypermap, Hyperlist };
 
 const pre = document.body.querySelector('pre');
 if (pre) {

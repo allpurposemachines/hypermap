@@ -1,5 +1,5 @@
 import { isMap } from './utils.js';
-import Hyperlist from './Hyperlist.js';
+import { Hyperlist } from './Hyperlist.js';
 
 /** @typedef { {href?: string, method?: string, rels?: string[], script?: string} } Attributes */
 /** @typedef { null | boolean | number | string } ValueLiteral */
@@ -8,7 +8,7 @@ import Hyperlist from './Hyperlist.js';
 /** @typedef { Hypermap | Hyperlist } Node */
 /** @typedef { Node | ValueLiteral } Value */
 
-export default class Hypermap extends EventTarget {
+export class Hypermap extends EventTarget {
 	/** @type { Attributes } */
 	attributes;
 	map;
