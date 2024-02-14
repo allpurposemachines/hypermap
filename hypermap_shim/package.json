@@ -5,14 +5,17 @@
 	"type": "module",
 	"exports": {
 		".": {
-			"browser": "./dist/index.js",
-			"import": "./src/Hypermap.js",
-			"types": "./dist/types/Hypermap.d.ts"
+			"deafult": "./src/index.js",
+			"types": "./types/Hypermap.d.ts"
+		},
+		"./lib": {
+			"default": "./src/Hypermap.js",
+			"types": "./types/Hypermap.d.ts"
 		}
 	},
 	"scripts": {
 		"test": "test",
-		"build": "esbuild ./src/index.js --bundle --outfile=./dist/index.js && tsc",
+		"build": "tsc",
 		"prepare": "npm run build"
 	},
 	"author": "daniel@allpurposemachines.com",
