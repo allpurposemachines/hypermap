@@ -5,10 +5,7 @@
 	"type": "module",
 	"exports": {
 		".": {
-			"deafult": "./src/index.js",
-			"types": "./types/Hypermap.d.ts"
-		},
-		"./lib": {
+			"browser": "./src/index.js",
 			"default": "./src/Hypermap.js",
 			"types": "./types/Hypermap.d.ts"
 		}
