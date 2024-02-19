@@ -6,7 +6,7 @@
 	"exports": {
 		".": {
 			"import": "./src/Mech.js",
-			"types": "./dist/types/Mech.d.ts"
+			"types": "./types/Mech.d.ts"
 		}
 	},
 	"scripts": {
