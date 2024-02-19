@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import Hypermap from './Hypermap.js';
+import { Hypermap } from '@allpurposemachines/hypermap-shim';
 import HyperProxyHandler from './HyperProxyHandler.js';
 
 export class Tab extends EventEmitter {

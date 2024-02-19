@@ -4,12 +4,12 @@
 		"allowJs": true,
 		"checkJs": true,
 		"target": "ES2022",
-		"module": "ES2022",
+		"module": "nodenext",
 		"moduleResolution": "nodenext",
 		"allowSyntheticDefaultImports": true,
 		"declaration": true,
     "emitDeclarationOnly": true,
-    "outDir": "dist/types",
+    "outDir": "types",
     "declarationMap": true
 	},
 	"include": ["./src/**/*"]

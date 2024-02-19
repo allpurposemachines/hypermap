@@ -1,7 +1,6 @@
 // @ts-nocheck
 
-import Hypermap from './Hypermap.js';
-import Hyperlist from './Hyperlist.js';
+import { Hypermap, Hyperlist } from '@allpurposemachines/hypermap-shim';
 
 export default class HyperProxyHandler {
 	browserContext;
@@ -38,7 +37,7 @@ export default class HyperProxyHandler {
 				);
 
 				if (!node.attributes.rels?.includes('transclude')) {
-					promises.push(this.browserContext.waitForNavigation());
+					promises.push(this.browserContext.waitForNavigation({ waitUntil: 'networkidle0' }));
 				}
 
 				await Promise.all(promises);

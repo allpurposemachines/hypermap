@@ -2,15 +2,19 @@ import test from 'node:test';
 import assert from 'assert';
 import mockTodoServer from './mockTodoServer.js';
 
-import { Mech } from '../wrapper.js';
+import { Mech } from '../src/Mech.js';
 
 const baseUrl = 'http://localhost/';
 const mockServer = mockTodoServer(baseUrl);
-const handleRequest = mockServer.handleRequest;
 
 Mech.debug = true;
-/** @param { import('puppeteer').HTTPRequest } request */
-Mech.debugRequestHandler = request => handleRequest(request);
+Mech.debugRequestHandler = request => {
+	if (request.url().startsWith(baseUrl)) {
+		mockServer.handleRequest(request);
+	} else {
+		request.continue();
+	}
+};
 const tab = await Mech.open(baseUrl);
 
 test('Given a tab', async (t) => {

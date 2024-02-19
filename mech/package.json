@@ -1,17 +1,18 @@
 {
 	"name": "@allpurposemachines/mech",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "A user agent for HyperMap services",
 	"type": "module",
 	"exports": {
-		"import": "./wrapper.js",
-		"require": "./dist/Mech.js",
-		"default": "./wrapper.js"
+		".": {
+			"import": "./src/Mech.js",
+			"types": "./dist/types/Mech.d.ts"
+		}
 	},
-	"types": "./dist/types/Mech.d.ts",
 	"scripts": {
 		"test": "npm run build && node tests/test.js",
-		"build": "rm -r dist && npx swc ./src --ignore ./src/assets/*.js -d ./dist && rm ./dist/assets/* && esbuild ./src/assets/shim.js --bundle --outfile=./dist/assets/shim.js && echo '{}' > ./dist/package.json && tsc",
+		"build": "tsc",
+		"prepare": "npm run build",
 		"start": "npm run build -- -w"
 	},
 	"keywords": [
@@ -27,13 +28,14 @@
 	},
 	"homepage": "https://www.allpurposemachines.com",
 	"dependencies": {
+		"@allpurposemachines/hypermap-shim": "^0.0.6",
+		"esbuild": "^0.20.1",
 		"puppeteer": "^19.7.5"
 	},
 	"devDependencies": {
 		"@swc/cli": "^0.1.62",
 		"@swc/core": "^1.3.42",
 		"@tsconfig/recommended": "^1.0.2",
-		"esbuild": "^0.17.16",
 		"eslint": "^8.36.0",
 		"typescript": "^5.1.3"
 	}
