@@ -11,7 +11,7 @@
 	},
 	"scripts": {
 		"test": "npm run build && node tests/test.js",
-		"build": "tsc",
+		"build": "esbuild --bundle node_modules/@allpurposemachines/hypermap-shim/src/index.js --outfile=dist/shim.js && tsc",
 		"prepare": "npm run build",
 		"start": "npm run build -- -w"
 	},
@@ -29,11 +29,11 @@
 	"homepage": "https://www.allpurposemachines.com",
 	"dependencies": {
 		"@allpurposemachines/hypermap-shim": "^0.0.6",
-		"esbuild": "^0.20.1",
 		"puppeteer": "^22.1.0"
 	},
 	"devDependencies": {
 		"@tsconfig/recommended": "^1.0.2",
+		"esbuild": "^0.20.1",
 		"eslint": "^8.36.0",
 		"typescript": "^5.1.3"
 	}

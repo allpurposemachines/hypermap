@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer';
 import { Tab } from './Tab.js';
-import esbuild from 'esbuild';
+import fs from 'node:fs';
 
 const Mech = {
 	debug: false,
@@ -8,11 +8,14 @@ const Mech = {
 	debugRequestHandler: null,
 	/** @type { puppeteer.Browser | null } */
 	browser: null,
+	pathToShim: './dist/shim.js',
 
 	/** @param { string } url */
 	async open(url) {
 		if (!this.browser) {
-			this.browser = await puppeteer.launch();
+			this.browser = await puppeteer.launch({
+				timeout: 0
+			});
 		}
 
 		const page = await this.browser.newPage();
@@ -29,16 +32,10 @@ const Mech = {
 			page.emit('contentchanged', null);
 		});
 
-		const bundledShim = esbuild.buildSync({
-			entryPoints: ['node_modules/@allpurposemachines/hypermap-shim/src/index.js'],
-			bundle: true,
-			write: false,
-			platform: 'browser',
-			format: 'esm'
-		});
+		const bundledShim = fs.readFileSync(this.pathToShim, 'utf8');
 
 		page.on('domcontentloaded', async () => {
-			await page.evaluate(bundledShim.outputFiles[0].text);
+			await page.evaluate(bundledShim);
 		});
 
 		const tab = new Tab(page);

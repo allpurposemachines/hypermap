@@ -37,7 +37,7 @@ export default class HyperProxyHandler {
 				);
 
 				if (!node.attributes.rels?.includes('transclude')) {
-					promises.push(this.browserContext.waitForNavigation({ waitUntil: 'networkidle0' }));
+					promises.push(this.browserContext.waitForNavigation());
 				}
 
 				await Promise.all(promises);
