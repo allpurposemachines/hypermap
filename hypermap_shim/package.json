@@ -1,6 +1,6 @@
 {
 	"name": "@allpurposemachines/hypermap-shim",
-	"version": "0.0.7",
+	"version": "0.1.0",
 	"description": "A shim for browsers to be able to parse and run HyperMap APIs",
 	"type": "module",
 	"exports": {
