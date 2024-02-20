@@ -26,7 +26,7 @@ const Mech = {
 		}
 
 		await page.exposeFunction('contentChanged', () => {
-			page.emit('contentchanged');
+			page.emit('contentchanged', null);
 		});
 
 		const bundledShim = esbuild.buildSync({

@@ -13,7 +13,6 @@ export class Tab extends EventEmitter {
 		super();
 		this.page = page;
 
-		// @ts-expect-error
 		this.page.on('contentchanged', async () => {
 			await this.syncData();
 			this.emit('contentchanged');

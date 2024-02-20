@@ -101,7 +101,8 @@ const mockTodoServer = (baseUrl) => ({
 		} else if (routes[url.pathname]) {
 			request.respond(partialResponse(routes[url.pathname]));
 		} else {
-			throw new Error(`No response defined for ${url}`);
+			console.log(`No response defined for ${url}`);
+			request.respond({ status: 404 });
 		}
 		
 		if (url.pathname === '/counter/') {
