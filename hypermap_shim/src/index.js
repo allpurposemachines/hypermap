@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { Hypermap, Hyperlist } from './Hypermap.js';
-export { Hypermap, Hyperlist };
+import { Hypermap } from './Hypermap.js';
 
 const pre = document.body.querySelector('pre');
 if (pre) {
@@ -8,7 +7,11 @@ if (pre) {
 	const jsonHypermap = JSON.parse(serializedHypermap);
 
 	globalThis.hypermap = Hypermap.fromLiteral(jsonHypermap);
-	globalThis.hypermap.hydrate();
+	globalThis.hypermap.hydrate().then(() => {
+		if (globalThis.contentChanged) {
+			globalThis.contentChanged();
+		}
+	});
 
 	globalThis.serializedHypermap = () => {
 		return JSON.parse(JSON.stringify(globalThis.hypermap));
