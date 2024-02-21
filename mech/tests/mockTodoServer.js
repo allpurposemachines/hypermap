@@ -6,7 +6,7 @@ const routes = {
 		completed: 0,
 		todos: [
 			{
-				'@': {
+				'#': {
 					href: '1/'
 				},
 				title: 'Buy milk',
@@ -14,7 +14,7 @@ const routes = {
 			}
 		],
 		newTodo: {
-			'@': {
+			'#': {
 				href: '',
 				method: 'POST'
 			},
@@ -26,20 +26,20 @@ const routes = {
 		completed: false
 	},
 	'/scripts/': {
-		'@': {
+		'#': {
 			script: '/assets/test.js'
 		},
 		'list': ['middle']
 	},
 	'/transclude/': {
 		todos: {
-			'@': {
+			'#': {
 				href: '/',
 				rels: ['transclude']
 			}
 		},
 		counter: {
-			'@': {
+			'#': {
 				href: '/counter/',
 				rels: ['transclude']
 			}
@@ -83,7 +83,7 @@ const mockTodoServer = (baseUrl) => ({
 		if (url.toString() === baseUrl && request.method() === 'POST') {
 			const { title } = JSON.parse(request.postData() ?? '');
 			routes['/'].todos.push({
-				'@': {
+				'#': {
 					href: '2/'
 				},
 				completed: false,
