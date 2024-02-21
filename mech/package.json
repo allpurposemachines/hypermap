@@ -1,6 +1,6 @@
 {
 	"name": "@allpurposemachines/mech",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"description": "A user agent for HyperMap services",
 	"type": "module",
 	"exports": {
@@ -28,7 +28,7 @@
 	},
 	"homepage": "https://www.allpurposemachines.com",
 	"dependencies": {
-		"@allpurposemachines/hypermap-shim": "^0.0.6",
+		"@allpurposemachines/hypermap-shim": "^0.2.0",
 		"puppeteer": "^22.1.0"
 	},
 	"devDependencies": {
