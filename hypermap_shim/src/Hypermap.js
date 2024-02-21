@@ -38,8 +38,8 @@ class Hypermap extends EventTarget {
 	 */
 	static fromLiteral(object, parent = null) {
 		/** @type { Attributes } */
-		const attributes = object['@'] ?? {};
-		delete object['@'];
+		const attributes = object['#'] ?? {};
+		delete object['#'];
 
 		let hypermap = new this(object, attributes, parent);
 		hypermap.forEach(
@@ -241,7 +241,7 @@ class Hypermap extends EventTarget {
 	toJSON() {
 		const obj = Object.fromEntries(this.map);
 		if (Object.entries(this.attributes).length > 0) {
-			obj['@'] = this.attributes;
+			obj['#'] = this.attributes;
 		}
 		return obj;
 	}
