@@ -8,7 +8,7 @@ const router = new Router();
 
 const nav = {
 	home: {
-		'@': {
+		'#': {
 			href: '/'
 		}
 	}
@@ -18,12 +18,12 @@ router
 	.get('/', ctx => {
 		const index = {
 			sentimentAnalysisLocal: {
-				'@': {
+				'#': {
 					href: '/sentiment/'
 				}
 			},
 			stocks: {
-				'@': {
+				'#': {
 					href: '/stocks/'
 				}
 			}
@@ -32,7 +32,7 @@ router
 	})
 	.get('/sentiment/', ctx => {
 		const body = {
-			'@': {
+			'#': {
 				script: '/sentiment.js',
 				editable: ['input']
 			},
@@ -43,7 +43,7 @@ router
 	})
 	.get('/stocks/', ctx => {
 		const submitOrder = (ticker: string) => ({
-			'@': {
+			'#': {
 				href: ticker + '/order/',
 				method: 'post'
 			},
@@ -51,7 +51,7 @@ router
 		});
 
 		const body = {
-			'@': {
+			'#': {
 				script: '/stocks.js'
 			},
 			market: {
@@ -79,7 +79,7 @@ router
 	})
 	.get('/stocks/:ticker/purchased/', ctx => {
 		const body = {
-			'@': {
+			'#': {
 				script: '/order.js'
 			},
 			status: 'submitted'
