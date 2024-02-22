@@ -36,7 +36,7 @@ There are some common headaches with APIs that HyperMap solves:
 
     ```json
     {
-      "@": {
+      "#": {
         "script": "/eventHandler.js"
       },
       "ticketId": "2277",
@@ -67,7 +67,7 @@ There are some common headaches with APIs that HyperMap solves:
 
     ```json
     {
-      "@": {
+      "#": {
         "script": "/streamHandler.js"
       },
       "aapl": 180.67,

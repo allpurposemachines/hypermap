@@ -140,7 +140,7 @@ Right now, there's no connection from the index view to the individual todos, so
 {
   &quot;todos&quot;: [
     {
-      &quot;@&quot;: {
+      &quot;#&quot;: {
         &quot;href&quot;: &quot;5J0rwwsyh/&quot;
       }
       &quot;title&quot;: &quot;Learn HyperMap&quot;,
@@ -149,7 +149,7 @@ Right now, there's no connection from the index view to the individual todos, so
   ]
 }
 </code></pre>
-<p>We've lifted the &quot;id&quot; into a new object under &quot;@&quot;.
+<p>We've lifted the &quot;id&quot; into a new object under &quot;#&quot;.
 This a reserved key in HyperMap's JSON serialization that holds attributes, here being used for a relative &quot;href&quot;.</p>
 <blockquote>
 <p>It's a good idea to use trailing slashs on all routes in a HyperMap service as the rules for resolving relative URLs without the trailing slash can catch you out.</p>
@@ -164,7 +164,7 @@ If it's a method which sends a body, like <code>PUT</code> or <code>POST</code>,
 {
   &quot;todos&quot;: [
     {
-      &quot;@&quot;: {
+      &quot;#&quot;: {
         &quot;href&quot;: &quot;5J0rwwsyh/&quot;
       }
       &quot;title&quot;: &quot;Learn HyperMap&quot;,
@@ -188,13 +188,13 @@ This lets us add dynamic elements to services, or even offload intensive or priv
 <p>Let's add a &quot;dueAt&quot; time to our todos, and a script to count of how many tasks are overdue:</p>
 <pre><code class="language-sh">% curl localhost:8000/ | jq
 {
-  &quot;@&quot;: {
+  &quot;#&quot;: {
     script: &quot;/assets/overdue_checker.js&quot;
   }
   &quot;overdue&quot;: 0,
   &quot;todos&quot;: [
     {
-      &quot;@&quot;: {
+      &quot;#&quot;: {
         &quot;href&quot;: &quot;5J0rwwsyh/&quot;
       }
       &quot;title&quot;: &quot;Learn HyperMap&quot;,

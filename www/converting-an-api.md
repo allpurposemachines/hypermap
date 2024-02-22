@@ -121,7 +121,7 @@ Right now, there's no connection from the index view to the individual todos, so
 {
   "todos": [
     {
-      "@": {
+      "#": {
         "href": "5J0rwwsyh/"
       }
       "title": "Learn HyperMap",
@@ -131,7 +131,7 @@ Right now, there's no connection from the index view to the individual todos, so
 }
 ```
 
-We've lifted the "id" into a new object under "@".
+We've lifted the "id" into a new object under "#".
 This a reserved key in HyperMap's JSON serialization that holds attributes, here being used for a relative "href".
 
 > It's a good idea to use trailing slashs on all routes in a HyperMap service as the rules for resolving relative URLs without the trailing slash can catch you out.
@@ -151,7 +151,7 @@ If it's a method which sends a body, like `PUT` or `POST`, the inner content of 
 {
   "todos": [
     {
-      "@": {
+      "#": {
         "href": "5J0rwwsyh/"
       }
       "title": "Learn HyperMap",
@@ -180,13 +180,13 @@ Let's add a "dueAt" time to our todos, and a script to count of how many tasks a
 ```sh
 % curl localhost:8000/ | jq
 {
-  "@": {
+  "#": {
     script: "/assets/overdue_checker.js"
   }
   "overdue": 0,
   "todos": [
     {
-      "@": {
+      "#": {
         "href": "5J0rwwsyh/"
       }
       "title": "Learn HyperMap",
