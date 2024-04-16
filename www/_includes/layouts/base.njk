@@ -1,17 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<!-- Google tag (gtag.js) -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-JC4W4BRJQ9"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag('js', new Date());
+		gtag('config', 'G-JC4W4BRJQ9');
+	</script>
+	<!-- End Google tag (gtag.js) -->
+
 	<meta charset="UTF-8">
-	<title>All-Purpose Machines</title>
+	<title>HyperMap and Mech Documentation | All-Purpose Machines</title>
 	<link rel="stylesheet" href="/styles.css">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
-</head>
-<body>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/xcode.min.css">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
-
+</head>
+<body>
 	{% include "partials/nav.njk" %}
 	{{ content | safe }}
 	{% include "partials/footer.njk" %}
