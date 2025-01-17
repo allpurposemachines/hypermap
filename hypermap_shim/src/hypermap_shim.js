@@ -18,11 +18,14 @@ class MapNode extends CollectionNode {
 	}
 
 	async start() {
-		if (this.attributes.scripts){
-			this.attributes.scripts.forEach(script => {
-				import(script.href);
-			});
-		}
+		const scripts = this.attributes.scripts || [];
+		return Promise.all(scripts.map(script => {
+			try {
+				return import(script.href);
+			} catch(err) {
+				console.log(err);
+			}
+		}));
 	}
 
 	at(key) {
@@ -109,7 +112,6 @@ function reviver(key, value, context) {
 		if (typeof value !== 'object') {
 			throw new Error('Invalid attributes: must be a map');
 		}
-		console.log("Here!", value);
 		try {
 			let attributes = {};
 			if (value.href) { attributes.href = new URL(value.href.value); }
