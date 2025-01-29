@@ -48,7 +48,6 @@
 
 			it("parses attributes as properties", () => {
 				const map = parseHypermap('{"#": {"href": "https://example.com", "scripts": ["https://example.com/foo.js"]}, "a": 1}');
-				console.log(map);
 				assert.equal(map.attributes.href, "https://example.com/");
 				assert.equal(map.attributes.scripts[0].href, "https://example.com/foo.js");
 			});
@@ -127,7 +126,7 @@
 				globalThis.hypermap = map;
 				await map.start();
 
-				assert.equal(map.at('started'), true);
+				assert.equal(map.at('started').value, true);
 				delete globalThis.hypermap;
 			});
 		});

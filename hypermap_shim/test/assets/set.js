@@ -1,1 +1,1 @@
-hypermap.set('started', true);
+hypermap.set('started', new BooleanNode(true));
