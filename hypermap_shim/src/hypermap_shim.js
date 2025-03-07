@@ -28,6 +28,10 @@ class MapNode extends CollectionNode {
 		}));
 	}
 
+	has(key) {
+		return this.innerMap.has(key);
+	}
+
 	at(key) {
 		return this.innerMap.get(key);
 	}
@@ -43,6 +47,10 @@ class MapNode extends CollectionNode {
 		} catch (error) {
 			throw new Error(`Failed to set value for key '${key}': ${error.message}`);
 		}
+	}
+
+	delete(key) {
+		this.innerMap.delete(key);
 	}
 
 	get size() {

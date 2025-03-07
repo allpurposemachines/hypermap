@@ -60,7 +60,14 @@
 			});
 		});
 
-		describe("simple MapNode mutation", () => {
+		describe("the MapNode interface", () => {
+			it("can check for key existence", () => {
+				const map = parseHypermap('{"a": {}}');
+
+				assert.isTrue(map.has('a'));
+				assert.isFalse(map.has('b'));
+			});
+
 			it("can set a number value", () => {
 				const map = parseHypermap("{}");
 				map.set('a', new NumberNode(1));
@@ -72,6 +79,12 @@
 				map.at('a').set('b', new NumberNode(2));
 				assert.equal(map.at('a').at('b').value, 2);
 			});
+
+			it("can delete a key", () => {
+				const map = parseHypermap('{"a": {}}');
+				map.delete('a');
+				assert.isFalse(map.has('a'));
+			})
 
 			it("can set a list", () => {
 				const map = parseHypermap("{}");
