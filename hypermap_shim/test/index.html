@@ -12,6 +12,7 @@
 
 	<script src="https://unpkg.com/chai@4/chai.js"></script>
 	<script src="https://unpkg.com/mocha/mocha.js"></script>
+	<script src="https://unpkg.com/sinon/pkg/sinon.js"></script>
 	<script src="/src/hypermap_shim.js"></script>
 
 	<script class="mocha-init">
@@ -130,6 +131,22 @@
 				delete globalThis.hypermap;
 			});
 		});
+
+		describe("simple events", () => {
+			it("raises events on data change", () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"foo": false}');
+
+				console.log(map.at('foo'));
+
+				map.addEventListener('set', (event) => {
+					handler(event);
+				});
+
+				map.set('foo', new BooleanNode(true));
+				assert.equal(handler.calledOnce, true);
+			});
+		})
 	</script>
 
 	<script class="mocha-exec" type="module">

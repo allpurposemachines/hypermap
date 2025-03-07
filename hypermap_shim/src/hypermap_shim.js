@@ -38,6 +38,8 @@ class MapNode extends CollectionNode {
 		}
 		try {
 			this.innerMap.set(key, value);
+			const event = new Event('set');
+			this.dispatchEvent(event);
 			return value;
 		} catch (error) {
 			throw new Error(`Failed to set value for key '${key}': ${error.message}`);
