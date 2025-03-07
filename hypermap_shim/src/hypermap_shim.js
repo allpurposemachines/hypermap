@@ -38,8 +38,7 @@ class MapNode extends CollectionNode {
 		}
 		try {
 			this.innerMap.set(key, value);
-			const event = new Event('set');
-			this.dispatchEvent(event);
+			window.dispatchEvent(new Event('mutation'));
 			return value;
 		} catch (error) {
 			throw new Error(`Failed to set value for key '${key}': ${error.message}`);
@@ -67,6 +66,7 @@ class ListNode extends CollectionNode {
 		}
 		try {
 			this.innerArray[index] = value;
+			window.dispatchEvent(new Event('mutation'));
 			return value;
 		} catch (error) {
 			throw new Error(`Failed to set value at index ${index}: ${error.message}`);
@@ -79,6 +79,7 @@ class ListNode extends CollectionNode {
 		}
 		try {
 			this.innerArray.push(value);
+			window.dispatchEvent(new Event('mutation'));
 			return value;
 		} catch (error) {
 			throw new Error(`Failed to append value: ${error.message}`);
@@ -91,6 +92,7 @@ class ListNode extends CollectionNode {
 		}
 		try {
 			this.innerArray.unshift(value);
+			window.dispatchEvent(new Event('mutation'));
 			return value;
 		} catch (error) {
 			throw new Error(`Failed to prepend value: ${error.message}`);
@@ -103,6 +105,7 @@ class ListNode extends CollectionNode {
 		}
 		try {
 			this.innerArray.splice(index, 0, value);
+			window.dispatchEvent(new Event('mutation'));
 			return value;
 		} catch (error) {
 			throw new Error(`Failed to insert value at index ${index}: ${error.message}`);

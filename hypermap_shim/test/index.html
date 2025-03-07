@@ -132,18 +132,64 @@
 			});
 		});
 
-		describe("simple events", () => {
-			it("raises events on data change", () => {
+		describe("mutation events", () => {
+			it("raises window events on map set", () => {
 				const handler = sinon.fake();
 				const map = parseHypermap('{"foo": false}');
 
-				console.log(map.at('foo'));
-
-				map.addEventListener('set', (event) => {
+				window.addEventListener('mutation', (event) => {
 					handler(event);
 				});
 
 				map.set('foo', new BooleanNode(true));
+				assert.equal(handler.calledOnce, true);
+			});
+
+			it("raises window events on list set", () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"foo": [false]}');
+
+				window.addEventListener('mutation', (event) => {
+					handler(event);
+				});
+
+				map.at('foo').set(0, new BooleanNode(true));
+				assert.equal(handler.calledOnce, true);
+			});
+
+			it("raises window events on list prepend", () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"foo": [2]}');
+
+				window.addEventListener('mutation', (event) => {
+					handler(event);
+				});
+
+				map.at('foo').prepend(new NumberNode(1));
+				assert.equal(handler.calledOnce, true);
+			});
+
+			it("raises window events on list append", () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"foo": [1]}');
+
+				window.addEventListener('mutation', (event) => {
+					handler(event);
+				});
+
+				map.at('foo').prepend(new NumberNode(2));
+				assert.equal(handler.calledOnce, true);
+			});
+
+			it("raises window events on list insert", () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"foo": [1, 3]}');
+
+				window.addEventListener('mutation', (event) => {
+					handler(event);
+				});
+
+				map.at('foo').insert(1, new NumberNode(2));
 				assert.equal(handler.calledOnce, true);
 			});
 		})
