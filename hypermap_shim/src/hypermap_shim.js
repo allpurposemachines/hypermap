@@ -40,17 +40,15 @@ class MapNode extends CollectionNode {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
-		try {
-			this.innerMap.set(key, value);
-			window.dispatchEvent(new Event('mutation'));
-			return value;
-		} catch (error) {
-			throw new Error(`Failed to set value for key '${key}': ${error.message}`);
-		}
+		this.innerMap.set(key, value);
+		window.dispatchEvent(new Event('mutation'));
+		return this;
 	}
 
 	delete(key) {
 		this.innerMap.delete(key);
+		window.dispatchEvent(new Event('mutation'));
+		return this;
 	}
 
 	get size() {
@@ -72,56 +70,42 @@ class ListNode extends CollectionNode {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
-		try {
-			this.innerArray[index] = value;
-			window.dispatchEvent(new Event('mutation'));
-			return value;
-		} catch (error) {
-			throw new Error(`Failed to set value at index ${index}: ${error.message}`);
-		}
+		this.innerArray[index] = value;
+		window.dispatchEvent(new Event('mutation'));
+		return this;
 	}
 
 	append(value) {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
-		try {
-			this.innerArray.push(value);
-			window.dispatchEvent(new Event('mutation'));
-			return value;
-		} catch (error) {
-			throw new Error(`Failed to append value: ${error.message}`);
-		}
+		this.innerArray.push(value);
+		window.dispatchEvent(new Event('mutation'));
+		return this;
 	}
 
 	prepend(value) {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
-		try {
-			this.innerArray.unshift(value);
-			window.dispatchEvent(new Event('mutation'));
-			return value;
-		} catch (error) {
-			throw new Error(`Failed to prepend value: ${error.message}`);
-		}
+		this.innerArray.unshift(value);
+		window.dispatchEvent(new Event('mutation'));
+		return this;
 	}
 
 	insert(index, value) {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
-		try {
-			this.innerArray.splice(index, 0, value);
-			window.dispatchEvent(new Event('mutation'));
-			return value;
-		} catch (error) {
-			throw new Error(`Failed to insert value at index ${index}: ${error.message}`);
-		}
+		this.innerArray.splice(index, 0, value);
+		window.dispatchEvent(new Event('mutation'));
+		return this;
 	}
 
-	remove(index) {
+	delete(index) {
 		this.innerArray.splice(index, 1);
+		window.dispatchEvent(new Event('mutation'));
+		return this;
 	}
 
 	get size() {
