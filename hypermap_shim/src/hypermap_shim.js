@@ -17,17 +17,6 @@ class MapNode extends CollectionNode {
 		this.innerMap = map;
 	}
 
-	async start() {
-		const scripts = this.attributes.scripts || [];
-		return Promise.all(scripts.map(script => {
-			try {
-				return import(script.href);
-			} catch(err) {
-				console.log(err);
-			}
-		}));
-	}
-
 	has(key) {
 		return this.innerMap.has(key);
 	}
@@ -201,4 +190,38 @@ globalThis.parseHypermap = function(inputString) {
 	};
 
 	return JSON.parse(inputString, reviver);
+};
+
+class Hypermap extends MapNode {
+	constructor(rootNode) {
+		super(rootNode.attributes, rootNode.innerMap);
+	}
+
+	async start() {
+		const scripts = this.attributes.scripts || [];
+		return Promise.all(scripts.map(script => {
+			try {
+				return import(script.href);
+			} catch(err) {
+				console.log(err);
+			}
+		}));
+	}
+
+	input(path, value) {
+		let pathRemaining = path;
+		let currentNode = this;
+		while (pathRemaining.length > 0) {
+			let key = pathRemaining.shift();
+			currentNode = currentNode.at(key);
+		}
+		currentNode.value = value;
+		currentNode.dispatchEvent(new Event('input'));
+		return currentNode;
+	}
+}
+
+globalThis.setHypermap = function(mapNode) {
+	globalThis.hypermap = new Hypermap(mapNode);
+	return globalThis.hypermap.start();
 };
