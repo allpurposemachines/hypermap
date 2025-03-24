@@ -153,12 +153,12 @@ globalThis.parseHypermap = function(inputString) {
 		if (typeof value === 'boolean') return new BooleanNode(value);
 		if (typeof value === 'number') return new NumberNode(value);
 		if (typeof value === 'string') return new StringNode(value);
-		
+
 		// Handle arrays
 		if (Array.isArray(value)) {
 			return new ListNode(value.map(v => nodeFromJsonValue(v, allowObjects)));
 		}
-		
+
 		// Handle objects
 		if (typeof value === 'object') {
 			if (!allowObjects) {
@@ -191,7 +191,7 @@ globalThis.parseHypermap = function(inputString) {
 			}
 			return attributes;
 		} catch(e) {
-			throw new Error('Invalid attribute values');
+			throw new Error(`Invalid attribute values: ${e.message}`);
 		}
 	};
 
