@@ -5,7 +5,7 @@ class Node extends EventTarget {
 	}
 
 	dispatchEvent(event) {
-		super.dispatchEvent(event, this);
+		super.dispatchEvent(event);
 		if (this.parent) {
 			this.parent.dispatchEvent(event);
 		}
