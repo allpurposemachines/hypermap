@@ -1,6 +1,14 @@
 class Node extends EventTarget {
 	constructor() {
 		super();
+		this.parent = null;
+	}
+
+	dispatchEvent(event) {
+		super.dispatchEvent(event, this);
+		if (this.parent) {
+			this.parent.dispatchEvent(event);
+		}
 	}
 }
 
@@ -15,6 +23,7 @@ class MapNode extends CollectionNode {
 		super();
 		this.attributes = attributes;
 		this.innerMap = map;
+		this.innerMap.forEach(child => child.parent = this);
 	}
 
 	has(key) {
@@ -49,6 +58,7 @@ class ListNode extends CollectionNode {
 	constructor(array) {
 		super();
 		this.innerArray = array;
+		this.innerArray.forEach(child => child.parent = this);
 	}
 
 	at(index) {
@@ -216,7 +226,8 @@ class Hypermap extends MapNode {
 			currentNode = currentNode.at(key);
 		}
 		currentNode.value = value;
-		currentNode.dispatchEvent(new Event('input'));
+		const event = new CustomEvent('input', { detail: { target: currentNode } });
+		currentNode.dispatchEvent(event);
 		return currentNode;
 	}
 }

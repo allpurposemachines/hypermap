@@ -17,7 +17,7 @@
 
 	<script class="mocha-init">
 		mocha.setup('bdd');
-    mocha.setup({globals: ['hypermap']});
+		mocha.setup({globals: ['hypermap']});
 		mocha.checkLeaks();
 	</script>
 
@@ -259,6 +259,33 @@
 				await window.setHypermap(map);
 				window.hypermap.input(['foo'], true);
 				assert(handler.calledOnce);
+			});
+
+			it("bubbles raised events", async () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"foo": false}');
+
+				await window.setHypermap(map);
+				window.hypermap.addEventListener('input', () => {
+					handler(event);
+				});
+
+				window.hypermap.input(['foo'], true);
+				assert(handler.calledOnce);
+			});
+
+			it("discriminates between different targets", async () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"foo": false, "bar": false}');
+
+				await window.setHypermap(map);
+				window.hypermap.addEventListener('input', () => {
+					handler(event.detail.target);
+				});
+
+				window.hypermap.input(['foo'], true);
+				assert(handler.calledOnce);
+				assert(handler.calledWith(map.at('foo')));
 			});
 		});
 	</script>
