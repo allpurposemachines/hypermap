@@ -288,6 +288,21 @@
 				assert(handler.calledWith(map.at('foo')));
 			});
 		});
+
+		describe('using controls', async () => {
+			it('raises a window event', async () => {
+				const handler = sinon.fake();
+				const map = parseHypermap('{"#": {"href": "https://www.example.com/"}}');
+				await window.setHypermap(map);
+				window.hypermap.addEventListener('use', (event) => {
+					event.preventDefault();
+					handler();
+				});
+
+				window.hypermap.use([]);
+				assert(handler.calledOnce);
+			});
+		})
 	</script>
 
 	<script class="mocha-exec" type="module">

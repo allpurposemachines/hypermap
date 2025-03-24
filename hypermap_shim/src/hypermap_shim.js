@@ -219,20 +219,44 @@ class Hypermap extends MapNode {
 	}
 
 	input(path, value) {
+		const node = this.nodeFromPath(path);
+		node.value = value;
+		const event = new CustomEvent('input', { bubbles: true, cancelable: true, detail: { target: node } });
+		node.dispatchEvent(event);
+		return node;
+	}
+
+	use(path) {
+		const node = this.nodeFromPath(path);
+		const event = new CustomEvent('use', { bubbles: true, cancelable: true, detail: { target: node }});
+		node.dispatchEvent(event);
+		return node;
+	}
+
+	nodeFromPath(path) {
 		let pathRemaining = path;
 		let currentNode = this;
 		while (pathRemaining.length > 0) {
 			let key = pathRemaining.shift();
 			currentNode = currentNode.at(key);
 		}
-		currentNode.value = value;
-		const event = new CustomEvent('input', { detail: { target: currentNode } });
-		currentNode.dispatchEvent(event);
 		return currentNode;
 	}
 }
 
 globalThis.setHypermap = function(mapNode) {
 	globalThis.hypermap = new Hypermap(mapNode);
+	globalThis.hypermap.parent = globalThis;
 	return globalThis.hypermap.start();
 };
+
+globalThis.addEventListener('use', (event) => {
+	if (event.defaultPrevented) {
+		return;
+	}
+
+	const attrs = event.detail.target.attributes;
+	if (attrs.href) {
+		globalThis.location = attrs.href;
+	}
+});
