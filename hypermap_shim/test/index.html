@@ -13,7 +13,7 @@
 	<script src="https://unpkg.com/chai@4/chai.js"></script>
 	<script src="https://unpkg.com/mocha/mocha.js"></script>
 	<script src="https://unpkg.com/sinon/pkg/sinon.js"></script>
-	<script src="/src/hypermap_shim.js"></script>
+	<script src="/src/index.js" type="module"></script>
 
 	<script class="mocha-init">
 		mocha.setup('bdd');
@@ -23,25 +23,34 @@
 
 	<script type="module">
 		const assert = chai.assert;
+    const {
+      Hypermap,
+      MapNode,
+      ListNode,
+      NullNode,
+      BooleanNode,
+      NumberNode,
+      StringNode
+    } = globalThis.HypermapShim;
 
-		describe("globalThis.parseHypermap", () => {
+		describe("Hypermap.fromJSON", () => {
 			it("parses an empty HyperMap", () => {
-				const map = parseHypermap("{}");
+				const map = Hypermap.fromJSON("{}");
 				assert.equal(map.size, 0);
 			});
 
 			it("parses a simple HyperMap", () => {
-				const map = parseHypermap('{"a": 1}');
+				const map = Hypermap.fromJSON('{"a": 1}');
 				assert.equal(map.at('a').value, 1);
 			});
 
 			it("parses a nested HyperMap", () => {
-				const map = parseHypermap('{"a": {"b": 2}}');
+				const map = Hypermap.fromJSON('{"a": {"b": 2}}');
 				assert.equal(map.at('a').at('b').value, 2);
 			});
 
 			it("parses a list", () => {
-				const map = parseHypermap('{"a": [1, 2, 3]}');
+				const map = Hypermap.fromJSON('{"a": [1, 2, 3]}');
 				assert.equal(map.at('a').size, 3);
 				assert.equal(map.at('a').at(0).value, 1);
 				assert.equal(map.at('a').at(1).value, 2);
@@ -49,53 +58,57 @@
 			});
 
 			it("parses attributes as properties", () => {
-				const map = parseHypermap('{"#": {"href": "https://example.com", "scripts": ["https://example.com/foo.js"]}, "a": 1}');
+        // FIXME handle relative URLs
+				const map = Hypermap.fromJSON('{"#": {"href": "https://example.com", "scripts": ["https://example.com/foo.js"]}, "a": 1}');
 				assert.equal(map.attributes.href, "https://example.com/");
 				assert.equal(map.attributes.scripts[0].href, "https://example.com/foo.js");
 			});
 
 			it("doesn't parse invalid attributes", () => {
 				assert.throws(() => {
-					parseHypermap('{"#": "not an object"}');
+					Hypermap.fromJSON('{"#": "not an object"}');
 				}, /Invalid attribute/);
 			});
 		});
 
+		// FIXME create render nodes to stringify
+		// Check what iframes need
+
 		describe("the MapNode interface", () => {
 			it("can check for key existence", () => {
-				const map = parseHypermap('{"a": {}}');
+				const map = Hypermap.fromJSON('{"a": {}}');
 
 				assert.isTrue(map.has('a'));
 				assert.isFalse(map.has('b'));
 			});
 
 			it("can set a number value", () => {
-				const map = parseHypermap("{}");
+				const map = Hypermap.fromJSON("{}");
 				map.set('a', new NumberNode(1));
 				assert.equal(map.at('a').value, 1);
 			});
 
 			it("can set a nested value", () => {
-				const map = parseHypermap('{"a": {}}');
+				const map = Hypermap.fromJSON('{"a": {}}');
 				map.at('a').set('b', new NumberNode(2));
 				assert.equal(map.at('a').at('b').value, 2);
 			});
 
 			it("can delete a key", () => {
-				const map = parseHypermap('{"a": {}}');
+				const map = Hypermap.fromJSON('{"a": {}}');
 				map.delete('a');
 				assert.isFalse(map.has('a'));
 			})
 
 			it("can set a list", () => {
-				const map = parseHypermap("{}");
+				const map = Hypermap.fromJSON("{}");
 				map.set('a', new ListNode([new NumberNode(1)]));
 				assert.equal(map.at('a').size, 1);
 				assert.equal(map.at('a').at(0).value, 1);
 			});
 
 			it("can set attributes", () => {
-				const map = parseHypermap("{}");
+				const map = Hypermap.fromJSON("{}");
 				map.attributes.href = "https://example.com";
 				assert.equal(map.attributes.href, "https://example.com");
 			});
@@ -103,28 +116,28 @@
 
 		describe("simple ListNode mutation", () => {
 			it("can append a node", () => {
-				const map = parseHypermap('{"a": [1, 2]}');
+				const map = Hypermap.fromJSON('{"a": [1, 2]}');
 				map.at('a').append(new NumberNode(3));
 				assert.equal(map.at('a').size, 3);
 				assert.equal(map.at('a').at(2).value, 3);
 			});
 
 			it("can prepend a node", () => {
-				const map = parseHypermap('{"a": [2, 3]}');
+				const map = Hypermap.fromJSON('{"a": [2, 3]}');
 				map.at('a').prepend(new NumberNode(1));
 				assert.equal(map.at('a').size, 3);
 				assert.equal(map.at('a').at(0).value, 1);
 			});
 
 			it("can insert a node", () => {
-				const map = parseHypermap('{"a": [1, 3]}');
+				const map = Hypermap.fromJSON('{"a": [1, 3]}');
 				map.at('a').insert(1, new NumberNode(2));
 				assert.equal(map.at('a').size, 3);
 				assert.equal(map.at('a').at(1).value, 2);
 			});
 
 			it("can delete a node", () => {
-				const map = parseHypermap('{"a": [1, 2, 3]}');
+				const map = Hypermap.fromJSON('{"a": [1, 2, 3]}');
 				map.at('a').delete(1);
 				assert.equal(map.at('a').size, 2);
 				assert.equal(map.at('a').at(0).value, 1);
@@ -138,7 +151,7 @@
 			});
 
 			it("can execute a simple script", async () => {
-				const map = parseHypermap('{"#": {"scripts": ["/test/assets/set.js"]}}');
+				const map = Hypermap.fromJSON('{"#": {"scripts": ["/test/assets/set.js"]}}');
 				assert.equal(map.attributes.scripts[0].href, 'http://localhost:3000/test/assets/set.js');
 
 				await globalThis.setHypermap(map);
@@ -148,10 +161,11 @@
 			});
 		});
 
+		// FIXME should these be contentchanged?
 		describe("mutation events", () => {
 			it("raises window events on map set", () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": false}');
+				const map = Hypermap.fromJSON('{"foo": false}');
 
 				window.addEventListener('mutation', (event) => {
 					handler(event);
@@ -163,7 +177,7 @@
 
 			it("raises window events on map delete", () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": false}');
+				const map = Hypermap.fromJSON('{"foo": false}');
 
 				window.addEventListener('mutation', (event) => {
 					handler(event);
@@ -175,7 +189,7 @@
 
 			it("raises window events on list set", () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": [false]}');
+				const map = Hypermap.fromJSON('{"foo": [false]}');
 
 				window.addEventListener('mutation', (event) => {
 					handler(event);
@@ -187,7 +201,7 @@
 
 			it("raises window events on list prepend", () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": [2]}');
+				const map = Hypermap.fromJSON('{"foo": [2]}');
 
 				window.addEventListener('mutation', (event) => {
 					handler(event);
@@ -199,7 +213,7 @@
 
 			it("raises window events on list append", () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": [1]}');
+				const map = Hypermap.fromJSON('{"foo": [1]}');
 
 				window.addEventListener('mutation', (event) => {
 					handler(event);
@@ -211,7 +225,7 @@
 
 			it("raises window events on list insert", () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": [1, 3]}');
+				const map = Hypermap.fromJSON('{"foo": [1, 3]}');
 
 				window.addEventListener('mutation', (event) => {
 					handler(event);
@@ -223,7 +237,7 @@
 
 			it("raises window events on list delete", () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": [1]}');
+				const map = Hypermap.fromJSON('{"foo": [1]}');
 
 				window.addEventListener('mutation', (event) => {
 					handler(event);
@@ -240,7 +254,7 @@
 			});
 
 			it("allows values to be input", async () => {
-				const map = parseHypermap('{"foo": false}');
+				const map = Hypermap.fromJSON('{"foo": false}');
 				// For some reason globalThis isn't in scope here
 				// but window is. To be investigated
 				await window.setHypermap(map);
@@ -250,7 +264,7 @@
 
 			it("raises events when inputting values", async () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": false}');
+				const map = Hypermap.fromJSON('{"foo": false}');
 
 				map.at('foo').addEventListener('input', () => {
 					handler(event);
@@ -263,7 +277,7 @@
 
 			it("bubbles raised events", async () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": false}');
+				const map = Hypermap.fromJSON('{"foo": false}');
 
 				await window.setHypermap(map);
 				window.hypermap.addEventListener('input', () => {
@@ -276,7 +290,7 @@
 
 			it("discriminates between different targets", async () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"foo": false, "bar": false}');
+				const map = Hypermap.fromJSON('{"foo": false, "bar": false}');
 
 				await window.setHypermap(map);
 				window.hypermap.addEventListener('input', () => {
@@ -292,7 +306,7 @@
 		describe('using controls', async () => {
 			it('raises a window event', async () => {
 				const handler = sinon.fake();
-				const map = parseHypermap('{"#": {"href": "https://www.example.com/"}}');
+				const map = Hypermap.fromJSON('{"#": {"href": "https://www.example.com/"}}');
 				await window.setHypermap(map);
 				window.hypermap.addEventListener('use', (event) => {
 					event.preventDefault();
@@ -302,7 +316,9 @@
 				window.hypermap.use([]);
 				assert(handler.calledOnce);
 			});
-		})
+
+			// FIXME add other method types etc.
+		});
 	</script>
 
 	<script class="mocha-exec" type="module">

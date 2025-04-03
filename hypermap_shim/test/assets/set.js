@@ -1,1 +1,1 @@
-hypermap.set('started', new BooleanNode(true));
+hypermap.set('started', new HypermapShim.BooleanNode(true));

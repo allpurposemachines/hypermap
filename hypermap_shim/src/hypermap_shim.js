@@ -6,7 +6,7 @@ class Node extends EventTarget {
 
 	dispatchEvent(event) {
 		super.dispatchEvent(event);
-		if (this.parent) {
+		if (this.parent) { // FIXME check for bubbling
 			this.parent.dispatchEvent(event);
 		}
 	}
@@ -143,68 +143,68 @@ class StringNode extends LeafNode {
 	}
 }
 
-globalThis.parseHypermap = function(inputString) {
-	const nodeFromJsonValue = (value, allowObjects = false) => {
-		// Handle existing nodes
-		if (value instanceof Node) return value;
-	
-		// Handle primitives
-		if (value === null) return new NullNode();
-		if (typeof value === 'boolean') return new BooleanNode(value);
-		if (typeof value === 'number') return new NumberNode(value);
-		if (typeof value === 'string') return new StringNode(value);
-
-		// Handle arrays
-		if (Array.isArray(value)) {
-			return new ListNode(value.map(v => nodeFromJsonValue(v, allowObjects)));
-		}
-
-		// Handle objects
-		if (typeof value === 'object') {
-			if (!allowObjects) {
-				throw new Error('Cannot convert object to node. Use a LeafNode class instead.');
-			}
-			const attributes = value['#'] || new MapNode();
-			delete value['#'];
-			return new MapNode(
-				attributesFromNode(attributes),
-				new Map(Object.entries(value).map(([k, v]) => [k, nodeFromJsonValue(v, true)]))
-			);
-		}
-		
-		throw new Error('Invalid value type');
-	}
-
-	const attributesFromNode = (value) => {
-		if (!(value instanceof MapNode)) {
-			throw new Error('Invalid attributes: must be a simple object with valid keys');
-		}
-		try {
-			let attributes = {};
-			if (value.at('href')) {
-				attributes.href = new URL(value.at('href').value);
-			}
-			if (value.at('scripts')) {
-				attributes.scripts = value.at('scripts').innerArray.map(
-					(node) => new URL(node.value, window.location.origin)
-				);
-			}
-			return attributes;
-		} catch(e) {
-			throw new Error(`Invalid attribute values: ${e.message}`);
-		}
-	};
-
-	const reviver = (_key, value) => {
-		return nodeFromJsonValue(value, true);
-	};
-
-	return JSON.parse(inputString, reviver);
-};
-
 class Hypermap extends MapNode {
 	constructor(rootNode) {
 		super(rootNode.attributes, rootNode.innerMap);
+	}
+
+	static fromJSON(json) {
+		const nodeFromJsonValue = (value, allowObjects = false) => {
+			// Handle existing nodes
+			if (value instanceof Node) return value;
+		
+			// Handle primitives
+			if (value === null) return new NullNode();
+			if (typeof value === 'boolean') return new BooleanNode(value);
+			if (typeof value === 'number') return new NumberNode(value);
+			if (typeof value === 'string') return new StringNode(value);
+	
+			// Handle arrays
+			if (Array.isArray(value)) {
+				return new ListNode(value.map(v => nodeFromJsonValue(v, allowObjects)));
+			}
+	
+			// Handle objects
+			if (typeof value === 'object') {
+				if (!allowObjects) {
+					throw new Error('Cannot convert object to node. Use a LeafNode class instead.');
+				}
+				const attributes = value['#'] || new MapNode();
+				delete value['#'];
+				return new MapNode(
+					attributesFromNode(attributes),
+					new Map(Object.entries(value).map(([k, v]) => [k, nodeFromJsonValue(v, true)]))
+				);
+			}
+			
+			throw new Error('Invalid value type');
+		}
+	
+		const attributesFromNode = (value) => {
+			if (!(value instanceof MapNode)) {
+				throw new Error('Invalid attributes: must be a simple object with valid keys');
+			}
+			try {
+				let attributes = {};
+				if (value.at('href')) {
+					attributes.href = new URL(value.at('href').value);
+				}
+				if (value.at('scripts')) {
+					attributes.scripts = value.at('scripts').innerArray.map(
+						(node) => new URL(node.value, window.location.origin)
+					);
+				}
+				return attributes;
+			} catch(e) {
+				throw new Error(`Invalid attribute values: ${e.message}`);
+			}
+		};
+	
+		const reviver = (_key, value) => {
+			return nodeFromJsonValue(value, true);
+		};
+	
+		return JSON.parse(json, reviver);
 	}
 
 	async start() {
@@ -244,19 +244,12 @@ class Hypermap extends MapNode {
 	}
 }
 
-globalThis.setHypermap = function(mapNode) {
-	globalThis.hypermap = new Hypermap(mapNode);
-	globalThis.hypermap.parent = globalThis;
-	return globalThis.hypermap.start();
-};
-
-globalThis.addEventListener('use', (event) => {
-	if (event.defaultPrevented) {
-		return;
-	}
-
-	const attrs = event.detail.target.attributes;
-	if (attrs.href) {
-		globalThis.location = attrs.href;
-	}
-});
+export const HypermapShim = {
+  Hypermap,
+  MapNode,
+  ListNode,
+  NullNode,
+  BooleanNode,
+  NumberNode,
+  StringNode
+}
