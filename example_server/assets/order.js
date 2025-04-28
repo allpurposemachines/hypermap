@@ -1,3 +1,3 @@
 setTimeout(() => {
-	hypermap.set('status', 'filled');
+	hypermap.set('status', new HypermapShim.StringNode('filled'));
 }, 5000);
