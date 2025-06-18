@@ -152,7 +152,7 @@
 
 			it("can execute a simple script", async () => {
 				const map = Hypermap.fromJSON('{"#": {"scripts": ["/test/assets/set.js"]}}');
-				assert.equal(map.attributes.scripts[0].href, 'http://localhost:3000/test/assets/set.js');
+				assert.equal(map.attributes.scripts[0].pathname, '/test/assets/set.js');
 
 				await globalThis.setHypermap(map);
 
