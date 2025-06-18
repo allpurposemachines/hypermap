@@ -245,11 +245,11 @@ class Hypermap extends MapNode {
 }
 
 export const HypermapShim = {
-  Hypermap,
-  MapNode,
-  ListNode,
-  NullNode,
-  BooleanNode,
-  NumberNode,
-  StringNode
+	Hypermap,
+	MapNode,
+	ListNode,
+	NullNode,
+	BooleanNode,
+	NumberNode,
+	StringNode
 }

@@ -23,15 +23,15 @@
 
 	<script type="module">
 		const assert = chai.assert;
-    const {
-      Hypermap,
-      MapNode,
-      ListNode,
-      NullNode,
-      BooleanNode,
-      NumberNode,
-      StringNode
-    } = globalThis.HypermapShim;
+		const {
+			Hypermap,
+			MapNode,
+			ListNode,
+			NullNode,
+			BooleanNode,
+			NumberNode,
+			StringNode
+		} = globalThis.HypermapShim;
 
 		describe("Hypermap.fromJSON", () => {
 			it("parses an empty HyperMap", () => {
@@ -58,7 +58,7 @@
 			});
 
 			it("parses attributes as properties", () => {
-        // FIXME handle relative URLs
+				// FIXME handle relative URLs
 				const map = Hypermap.fromJSON('{"#": {"href": "https://example.com", "scripts": ["https://example.com/foo.js"]}, "a": 1}');
 				assert.equal(map.attributes.href, "https://example.com/");
 				assert.equal(map.attributes.scripts[0].href, "https://example.com/foo.js");
