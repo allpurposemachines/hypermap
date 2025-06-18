@@ -52,6 +52,10 @@ class MapNode extends CollectionNode {
 	get size() {
 		return this.innerMap.size;
 	}
+
+	toJSON() {
+		return Object.fromEntries(this.innerMap);
+	}
 }
 
 class ListNode extends CollectionNode {
@@ -110,9 +114,16 @@ class ListNode extends CollectionNode {
 	get size() {
 		return this.innerArray.length;
 	}
+
+	toJSON() {
+		return this.innerArray;
+	}
 }
 
 class LeafNode extends Node {
+	toJSON() {
+		return this.value;
+	}
 }
 
 class BooleanNode extends LeafNode {

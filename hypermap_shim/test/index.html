@@ -71,8 +71,18 @@
 			});
 		});
 
-		// FIXME create render nodes to stringify
-		// Check what iframes need
+		describe('serialisation', () => {
+			it('serialises an empty map', () => {
+				const map = new Hypermap({}, new Map());
+				assert.equal(JSON.stringify(map), '{}');
+			});
+
+			it('serialising a simple map roundtrips', () => {
+				const serializedMap = '{"a":[1,"a",true,null]}';
+				const map = Hypermap.fromJSON(serializedMap);
+				assert.equal(JSON.stringify(map), serializedMap);
+			})
+		});
 
 		describe("the MapNode interface", () => {
 			it("can check for key existence", () => {
