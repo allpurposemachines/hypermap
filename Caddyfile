@@ -1,0 +1,17 @@
+localhost:4000 {
+	file_server
+	root hypermap_shim
+	tls internal
+	header Access-Control-Allow-Origin *
+}
+
+localhost:4001 {
+	reverse_proxy :8000
+	tls internal
+}
+
+localhost:4002 {
+	file_server
+	root mech_browser
+	tls internal
+}

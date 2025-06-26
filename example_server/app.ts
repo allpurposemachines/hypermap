@@ -1,15 +1,28 @@
 import {
 	Application,
-	Context,
 	Router
-} from 'https://deno.land/x/oak@v12.0.1/mod.ts';
+} from 'jsr:@oak/oak@12.6.3';
 
 const router = new Router();
+
+function template(body: unknown) {
+	return `<!DOCTYPE html>
+		<html>
+			<head>
+				<title>HyperMap Demo!</title>
+				<script type="module" src="https://localhost:4000/src/index.js"></script>
+			<head>
+			<body>
+				<pre>${JSON.stringify(body)}</pre>
+			</body>
+		</html>
+	`;
+}
 
 const nav = {
 	home: {
 		'#': {
-			href: '/'
+			href: 'https://localhost:4001/'
 		}
 	}
 };
@@ -19,32 +32,32 @@ router
 		const index = {
 			sentimentAnalysisLocal: {
 				'#': {
-					href: '/sentiment/'
+					href: 'https://localhost:4001/sentiment/'
 				}
 			},
 			stocks: {
 				'#': {
-					href: '/stocks/'
+					href: 'https://localhost:4001/stocks/'
 				}
 			}
 		};
-		ctx.response.body = { nav, ...index };
+		ctx.response.body = template({ nav, ...index });
 	})
 	.get('/sentiment/', ctx => {
 		const body = {
 			'#': {
-				script: '/sentiment.js',
+				scripts: ['/sentiment.js'],
 				editable: ['input']
 			},
 			input: null,
 			sentiment: null
 		};
-		ctx.response.body = { nav, ...body };
+		ctx.response.body = template({ nav, ...body });
 	})
 	.get('/stocks/', ctx => {
 		const submitOrder = (ticker: string) => ({
 			'#': {
-				href: ticker + '/order/',
+				href: 'https://localhost:4001/' + ticker + '/order/',
 				method: 'post'
 			},
 			quantity: 0
@@ -52,7 +65,7 @@ router
 
 		const body = {
 			'#': {
-				script: '/stocks.js'
+				scripts: ['/stocks.js']
 			},
 			market: {
 				ibm: {
@@ -68,7 +81,7 @@ router
 			}
 		};
 
-		ctx.response.body = { nav, ...body };
+		ctx.response.body = template({ nav, ...body });
 	})
 	.post('/stocks/:ticker/order/', async ctx => {
 		const body = await ctx.request.body().value;
@@ -80,24 +93,18 @@ router
 	.get('/stocks/:ticker/purchased/', ctx => {
 		const body = {
 			'#': {
-				script: '/order.js'
+				scripts: ['/order.js']
 			},
 			status: 'submitted'
 		};
 
-		ctx.response.body = { nav, ...body };
+		ctx.response.body = template({ nav, ...body });
 	})
 	.get('/vscode_redirect/', ctx => {
 		ctx.response.redirect('vscode://all-purpose-machines.apm-explorer/foo?uri=https%3A%2F%2Fservices.allpurposemachines.com%2F');
 	});
 
 const app = new Application();
-
-app.use(async (context: Context, next) => {
-	context.response.headers.set('Access-Control-Allow-Origin', '*');
-	context.response.type = 'application/vnd.hypermap+json; charset=utf-8';
-	await next();
-});
 
 app.use(router.routes());
 

@@ -1,9 +1,9 @@
 import Sentiment from 'https://esm.sh/sentiment';
 
-hypermap.addEventListener('changed', () => {
-	const inputText = hypermap.at('input');
+hypermap.addEventListener('input', () => {
+	const inputText = hypermap.at('input').value;
 	const sentiment = sentimentAsText(inputText);
-	hypermap.set('sentiment', sentiment);
+	hypermap.set('sentiment', new HypermapShim.StringNode(sentiment));
 });
 
 function sentimentAsText(input) {
