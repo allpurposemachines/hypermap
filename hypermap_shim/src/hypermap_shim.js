@@ -120,40 +120,16 @@ class ListNode extends CollectionNode {
 	}
 }
 
-class LeafNode extends Node {
+class ValueNode extends Node {
+	constructor(value) {
+		super();
+		this.value = value;
+	}
+
 	toJSON() {
 		return this.value;
 	}
 }
-
-class BooleanNode extends LeafNode {
-	constructor(value) {
-		super();
-		this.value = value;
-	}
-}
-
-class NullNode extends LeafNode {
-	constructor() {
-		super();
-		this.value = null;
-	}
-}
-
-class NumberNode extends LeafNode {
-	constructor(value) {
-		super();
-		this.value = value;
-	}
-}
-
-class StringNode extends LeafNode {
-	constructor(value) {
-		super();
-		this.value = value;
-	}
-}
-
 class Hypermap extends MapNode {
 	constructor(rootNode) {
 		super(rootNode.attributes, rootNode.innerMap);
@@ -163,22 +139,16 @@ class Hypermap extends MapNode {
 		const nodeFromJsonValue = (value, allowObjects = false) => {
 			// Handle existing nodes
 			if (value instanceof Node) return value;
-		
-			// Handle primitives
-			if (value === null) return new NullNode();
-			if (typeof value === 'boolean') return new BooleanNode(value);
-			if (typeof value === 'number') return new NumberNode(value);
-			if (typeof value === 'string') return new StringNode(value);
-	
+
 			// Handle arrays
 			if (Array.isArray(value)) {
 				return new ListNode(value.map(v => nodeFromJsonValue(v, allowObjects)));
 			}
 	
 			// Handle objects
-			if (typeof value === 'object') {
+			if (value && typeof value === 'object') {
 				if (!allowObjects) {
-					throw new Error('Cannot convert object to node. Use a LeafNode class instead.');
+					throw new Error('Cannot convert object to node. Use a ValueNode class instead.');
 				}
 				const attributes = value['#'] || new MapNode();
 				delete value['#'];
@@ -187,8 +157,9 @@ class Hypermap extends MapNode {
 					new Map(Object.entries(value).map(([k, v]) => [k, nodeFromJsonValue(v, true)]))
 				);
 			}
-			
-			throw new Error('Invalid value type');
+
+			// Otherwise it's a primitive value
+			return new ValueNode(value);
 		}
 	
 		const attributesFromNode = (value) => {
@@ -259,8 +230,5 @@ export const HypermapShim = {
 	Hypermap,
 	MapNode,
 	ListNode,
-	NullNode,
-	BooleanNode,
-	NumberNode,
-	StringNode
+	ValueNode
 }
