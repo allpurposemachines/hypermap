@@ -4,27 +4,14 @@
 	"description": "A shim for browsers to be able to parse and run HyperMap APIs",
 	"type": "module",
 	"exports": {
-		".": {
-			"browser": "./src/index.js",
-			"default": "./src/Hypermap.js",
-			"types": "./types/Hypermap.d.ts"
-		}
+		".": "./src/index.js"
 	},
-	"scripts": {
-		"test": "test",
-		"build": "tsc",
-		"prepare": "npm run build"
-	},
+	"scripts": {},
 	"author": "daniel@allpurposemachines.com",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/allpurposemachines/hypermap"
 	},
-	"homepage": "https://www.allpurposemachines.com",
-	"devDependencies": {
-		"@tsconfig/recommended": "^1.0.3",
-		"esbuild": "0.20.0",
-		"typescript": "^5.3.3"
-	}
+	"homepage": "https://www.allpurposemachines.com"
 }
