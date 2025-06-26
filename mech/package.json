@@ -1,20 +1,12 @@
 {
 	"name": "@allpurposemachines/mech",
 	"version": "0.8.0",
-	"description": "A user agent for HyperMap services",
+	"description": "A client for HyperMap services. Browser only for now.",
 	"type": "module",
 	"exports": {
-		".": {
-			"default": "./src/Mech.js",
-			"types": "./types/Mech.d.ts"
-		}
+		".": "./index.js"
 	},
-	"scripts": {
-		"test": "npm run build && node tests/test.js",
-		"build": "esbuild --bundle node_modules/@allpurposemachines/hypermap-shim/src/index.js --outfile=dist/shim.js && tsc",
-		"prepare": "npm run build",
-		"start": "npm run build -- -w"
-	},
+	"scripts": {},
 	"keywords": [
 		"hypermap",
 		"hypermedia",
@@ -26,15 +18,5 @@
 		"type": "git",
 		"url": "git+https://github.com/allpurposemachines/hypermap"
 	},
-	"homepage": "https://www.allpurposemachines.com",
-	"dependencies": {
-		"@allpurposemachines/hypermap-shim": "^0.2.0",
-		"puppeteer": "^22.1.0"
-	},
-	"devDependencies": {
-		"@tsconfig/recommended": "^1.0.2",
-		"esbuild": "^0.20.1",
-		"eslint": "^8.36.0",
-		"typescript": "^5.1.3"
-	}
+	"homepage": "https://www.allpurposemachines.com"
 }
