@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperMap Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for hypermap display */
+        .hypermap-container {
+            @apply space-y-2;
+        }
+        .hypermap-row {
+            @apply flex gap-2 items-start;
+        }
+        .hypermap-label {
+            @apply font-medium text-gray-700 min-w-[120px] flex-shrink-0;
+        }
+        .hypermap-value {
+            @apply flex-1;
+        }
+        .hypermap-list {
+            @apply list-none space-y-1;
+        }
+        .hypermap-list-item {
+            @apply pl-4 border-l-2 border-gray-200;
+        }
+        .hypermap-link {
+            @apply block py-1;
+        }
+        .tab-active {
+            @apply bg-blue-50 border-l-4 border-blue-500;
+        }
+        input.editable {
+            @apply px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500 w-full;
+            background-color: #f9fafb;
+            transition: background-color 0.2s;
+        }
+        input.editable:hover {
+            background-color: #ffffff;
+        }
+        .debug-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 400px;
+            background-color: #111827;
+            color: #f3f4f6;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease-in-out;
+            z-index: 50;
+            transform: translateX(100%);
+        }
+        .debug-panel.open {
+            transform: translateX(0);
+        }
+        pre.json-view {
+            font-family: monospace;
+            font-size: 0.875rem;
+            overflow: auto;
+            height: 100%;
+            padding: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen overflow-hidden">
+    <div class="flex h-full">
+        <!-- Left Sidebar - Tab List -->
+        <div class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="p-4 border-b border-gray-200">
+                <h1 class="text-xl font-bold text-gray-800">HyperMap Viewer</h1>
+            </div>
+            
+            <!-- URL Input -->
+            <div class="p-4 border-b border-gray-200">
+                <form id="urlForm" class="space-y-2">
+                    <input 
+                        type="url" 
+                        id="urlInput" 
+                        placeholder="Enter HyperMap URL..." 
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        value="https://api.example.com/resource"
+                    >
+                    <button 
+                        type="submit" 
+                        class="w-full px-3 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition"
+                    >
+                        Open Tab
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Tab List -->
+            <div class="flex-1 overflow-y-auto">
+                <div id="tabList" class="p-2 space-y-1">
+                    <!-- Tabs will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-y-auto relative">
+            <!-- Debug Toggle Button -->
+            <button 
+                id="debugToggle"
+                class="absolute top-4 right-4 p-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition z-10"
+                title="Toggle Debug View"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                </svg>
+            </button>
+            
+            <div id="tabContent" class="p-6">
+                <div class="text-gray-500 text-center py-12">
+                    No tabs open. Enter a HyperMap URL to get started.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Debug Panel -->
+    <div id="debugPanel" class="debug-panel">
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
+            <h2 class="text-lg font-semibold">Debug View - JSON</h2>
+            <button 
+                id="debugClose"
+                class="text-gray-400 hover:text-white"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <pre id="jsonView" class="json-view"></pre>
+    </div>
+
+    <script type="module">
+        // import 'https://cdn.jsdelivr.net/npm/@allpurposemachines/mech@0.8.0/+esm';
+        class Tab extends EventTarget {
+          constructor(contentWindow, url) {
+            super();
+            this.window = contentWindow;
+            this.hypermap = null;
+            this.url = url; // FIXME: update when the
+          }
+
+          use(path) {
+            const message = { type: "use", path };
+            this.window.postMessage(JSON.stringify(message), '*');
+          }
+
+          input(path, value) {
+            const message = { type: "input", path, value };
+            this.window.postMessage(JSON.stringify(message), '*');
+          }
+        }
+
+        globalThis.Mech = {
+          tabs: [],
+          tabMap: new Map(),
+          iframeMap: new Map(),
+          open: function(url) {
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.style.position = 'absolute';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.opacity = '0';
+            iframe.style.pointerEvents = 'none';
+            iframe.style.border = 'none';
+            document.body.appendChild(iframe);
+
+            const tab = new Tab(iframe.contentWindow, url);
+            this.tabs.push(tab);
+            this.tabMap.set(iframe.contentWindow, tab);
+            this.iframeMap.set(tab, iframe);
+
+            return tab;
+          },
+          closeTab: function(tab) {
+            const index = this.tabs.indexOf(tab);
+            if (index === -1) return;
+            
+            // Remove iframe from DOM
+            const iframe = this.iframeMap.get(tab);
+            if (iframe && iframe.parentNode) {
+              iframe.parentNode.removeChild(iframe);
+            }
+            
+            // Clean up maps
+            this.tabMap.delete(tab.window);
+            this.iframeMap.delete(tab);
+            
+            // Remove from tabs array
+            this.tabs.splice(index, 1);
+          }
+        }
+
+        window.addEventListener('message', (event) => {
+          const data = JSON.parse(event.data);
+          let tab = Mech.tabMap.get(event.source);
+          if (tab) {
+            tab.hypermap = data.data;
+            tab.dispatchEvent(new Event('changed'));
+          }
+        });
+        // END OF IMPORT
+
+
+        // State management
+        let activeTabIndex = -1;
+        const tabChangeListeners = new Map();
+        let debugPanelOpen = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('urlForm').addEventListener('submit', handleUrlSubmit);
+            
+            // Set up debug panel controls
+            const debugToggle = document.getElementById('debugToggle');
+            const debugClose = document.getElementById('debugClose');
+            
+            if (debugToggle) {
+                debugToggle.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleDebugPanel();
+                });
+            }
+            
+            if (debugClose) {
+                debugClose.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeDebugPanel();
+                });
+            }
+            
+            renderTabs();
+        });
+
+        function toggleDebugPanel() {
+            console.log('Toggle debug panel');
+            const panel = document.getElementById('debugPanel');
+            if (panel) {
+                debugPanelOpen = !debugPanelOpen;
+                console.log('Debug panel open:', debugPanelOpen);
+                console.log('Panel classes before:', panel.className);
+                
+                if (debugPanelOpen) {
+                    panel.classList.add('open');
+                    updateDebugView();
+                } else {
+                    panel.classList.remove('open');
+                }
+                
+                console.log('Panel classes after:', panel.className);
+                // Force a reflow to ensure the transition works
+                panel.offsetHeight;
+            } else {
+                console.error('Debug panel not found');
+            }
+        }
+
+        function closeDebugPanel() {
+            debugPanelOpen = false;
+            document.getElementById('debugPanel').classList.remove('open');
+        }
+
+        function updateDebugView() {
+            const jsonView = document.getElementById('jsonView');
+            if (activeTabIndex >= 0 && activeTabIndex < Mech.tabs.length) {
+                const tab = Mech.tabs[activeTabIndex];
+                if (tab && tab.hypermap) {
+                    jsonView.textContent = JSON.stringify(tab.hypermap, null, 2);
+                } else {
+                    jsonView.textContent = 'No data available';
+                }
+            } else {
+                jsonView.textContent = 'No active tab';
+            }
+        }
+
+        async function handleUrlSubmit(e) {
+            e.preventDefault();
+            const url = document.getElementById('urlInput').value.trim();
+            if (url) {
+                await openTab(url);
+                document.getElementById('urlInput').value = '';
+            }
+        }
+
+        async function openTab(url) {
+            const tab = await Mech.open(url);
+            const tabIndex = Mech.tabs.length - 1;
+            
+            // Set up change listener
+            const listener = () => {
+                if (activeTabIndex === tabIndex) {
+                    renderTabContent(tab);
+                    // Update debug view if open
+                    if (debugPanelOpen) {
+                        updateDebugView();
+                    }
+                }
+            }
+            tab.addEventListener('changed', listener);
+            tabChangeListeners.set(tabIndex, listener);
+            
+            renderTabs();
+            selectTab(tabIndex);
+            
+            // Initial render with timeout
+            setTimeout(() => {
+                if (activeTabIndex === tabIndex) {
+                    renderTabContent(tab);
+                }
+            }, 100);
+        }
+
+        function selectTab(index) {
+            activeTabIndex = index;
+            renderTabs();
+            if (index >= 0 && index < Mech.tabs.length) {
+                renderTabContent(Mech.tabs[index]);
+            }
+            // Update debug view if open
+            if (debugPanelOpen) {
+                updateDebugView();
+            }
+        }
+
+        function closeTab(index, e) {
+            if (e) {
+                e.stopPropagation();
+            }
+            
+            // Remove listener
+            const listener = tabChangeListeners.get(index);
+            if (listener) {
+                const tab = Mech.tabs[index];
+                if (tab) {
+                    tab.removeEventListener('changed', listener);
+                }
+                tabChangeListeners.delete(index);
+            }
+            
+            // Remove tab using Mech.closeTab
+            const tab = Mech.tabs[index];
+            if (tab) {
+                Mech.closeTab(tab);
+            }
+            
+            // Update all listener mappings since indices have shifted
+            const newListeners = new Map();
+            tabChangeListeners.forEach((listener, oldIndex) => {
+                if (oldIndex > index) {
+                    newListeners.set(oldIndex - 1, listener);
+                } else if (oldIndex < index) {
+                    newListeners.set(oldIndex, listener);
+                }
+            });
+            tabChangeListeners.clear();
+            newListeners.forEach((listener, idx) => {
+                tabChangeListeners.set(idx, listener);
+            });
+            
+            // Adjust active tab
+            if (activeTabIndex >= Mech.tabs.length) {
+                activeTabIndex = Mech.tabs.length - 1;
+            } else if (activeTabIndex > index) {
+                activeTabIndex--;
+            }
+            
+            renderTabs();
+            if (activeTabIndex >= 0) {
+                renderTabContent(Mech.tabs[activeTabIndex]);
+            } else {
+                document.getElementById('tabContent').innerHTML = `
+                    <div class="text-gray-500 text-center py-12">
+                        No tabs open. Enter a HyperMap URL to get started.
+                    </div>
+                `;
+            }
+        }
+
+        function renderTabs() {
+            const tabList = document.getElementById('tabList');
+            tabList.innerHTML = '';
+
+            Mech.tabs.forEach((tab, index) => {
+                const tabEl = document.createElement('div');
+                tabEl.className = `flex items-center justify-between p-3 rounded cursor-pointer hover:bg-gray-50 ${
+                    activeTabIndex === index ? 'tab-active' : ''
+                }`;
+                tabEl.onclick = () => selectTab(index);
+                
+                const urlParts = tab.url.split('/');
+                const tabTitle = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2] || 'Resource';
+                
+                const tabInfo = document.createElement('div');
+                tabInfo.className = 'flex-1 min-w-0';
+                tabInfo.innerHTML = `
+                    <div class="font-medium text-sm truncate">${tabTitle}</div>
+                    <div class="text-xs text-gray-500 truncate">${tab.url}</div>
+                `;
+                
+                const closeButton = document.createElement('button');
+                closeButton.className = 'ml-2 text-gray-400 hover:text-gray-600';
+                closeButton.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                `;
+                closeButton.onclick = (e) => closeTab(index, e);
+                
+                tabEl.appendChild(tabInfo);
+                tabEl.appendChild(closeButton);
+                tabList.appendChild(tabEl);
+            });
+        }
+
+        function renderTabContent(tab) {
+            const content = document.getElementById('tabContent');
+            
+            if (!tab.hypermap) {
+                content.innerHTML = `
+                    <div class="text-gray-500 text-center py-12">
+                        Loading...
+                    </div>
+                `;
+                return;
+            }
+            
+            // Save focus state before re-rendering
+            const activeElement = document.activeElement;
+            let focusPath = null;
+            let focusValue = '';
+            let selectionStart = 0;
+            let selectionEnd = 0;
+            
+            if (activeElement && activeElement.classList.contains('editable') && activeElement.dataset.path) {
+                focusPath = activeElement.dataset.path;
+                focusValue = activeElement.value;
+                selectionStart = activeElement.selectionStart;
+                selectionEnd = activeElement.selectionEnd;
+            }
+            
+            content.innerHTML = `
+                <div class="max-w-4xl">
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">${tab.url}</h2>
+                    <div id="hypermapRoot"></div>
+                </div>
+            `;
+            
+            const root = document.getElementById('hypermapRoot');
+            const rendered = renderHypermap(tab.hypermap, []);
+            // Only wrap in container if it's not already wrapped
+            if (rendered.className && rendered.className.includes('hypermap')) {
+                root.appendChild(rendered);
+            } else {
+                const container = document.createElement('div');
+                container.className = 'hypermap bg-white rounded shadow p-4 mb-4';
+                container.appendChild(rendered);
+                root.appendChild(container);
+            }
+            
+            // Restore focus if needed
+            if (focusPath) {
+                const inputs = content.querySelectorAll('input.editable');
+                for (const input of inputs) {
+                    if (input.dataset.path === focusPath) {
+                        input.focus();
+                        input.value = focusValue;
+                        input.setSelectionRange(selectionStart, selectionEnd);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function renderHypermap(hypermap, path) {
+            // Check for control type first
+            const metadata = hypermap['#'] || {};
+            const isControl = metadata.type === 'control';
+            const nonMetadataKeys = Object.keys(hypermap).filter(k => k !== '#');
+            
+            // If this is a control with no other keys, just return a link
+            if (isControl && nonMetadataKeys.length === 0) {
+                const link = document.createElement('a');
+                link.href = '#';
+                link.className = 'text-blue-600 hover:text-blue-800 underline';
+                link.textContent = path[path.length - 1] || 'Control';
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    if (activeTabIndex >= 0) {
+                        const tab = Mech.tabs[activeTabIndex];
+                        tab.use(path);
+                    }
+                };
+                return link;
+            }
+            
+            // For everything else, create a container
+            const container = document.createElement('div');
+            container.className = 'hypermap bg-white rounded shadow p-4 mb-4';
+            
+            // If this is a control with other keys, render as form
+            if (isControl && nonMetadataKeys.length > 0) {
+                const form = document.createElement('form');
+                form.className = 'space-y-2';
+                
+                nonMetadataKeys.forEach(key => {
+                    const label = document.createElement('label');
+                    label.className = 'block';
+                    
+                    const span = document.createElement('span');
+                    span.className = 'text-sm font-medium text-gray-700';
+                    span.textContent = key + ':';
+                    label.appendChild(span);
+                    
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'editable';
+                    input.value = hypermap[key] !== null && hypermap[key] !== undefined ? hypermap[key].toString() : '';
+                    input.dataset.path = JSON.stringify(path.concat([key]));
+                    input.addEventListener('input', handleValueChange);
+                    label.appendChild(input);
+                    
+                    form.appendChild(label);
+                });
+                
+                const button = document.createElement('button');
+                button.type = 'submit';
+                button.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition';
+                button.textContent = 'Submit';
+                form.appendChild(button);
+                
+                form.onsubmit = (e) => {
+                    e.preventDefault();
+                    if (activeTabIndex >= 0) {
+                        const tab = Mech.tabs[activeTabIndex];
+                        tab.use(path);
+                    }
+                };
+                
+                container.appendChild(form);
+                return container;
+            }
+            
+            // Regular rendering for non-controls
+            const dl = document.createElement('dl');
+            dl.className = 'hypermap';
+            
+            Object.entries(hypermap).forEach(([key, value]) => {
+                if (key === '#') return; // Skip metadata
+                
+                const row = document.createElement('div');
+                // Check if the value is a link control FIRST
+                if (value && typeof value === 'object' && value['#'] && value['#'].type === 'control' && Object.keys(value).filter(k => k !== '#').length === 0) {
+                    // It's a link control - just add the link directly
+                    const link = renderHypermap(value, path.concat([key]));
+                    dl.appendChild(row).appendChild(link);
+                    return;
+                }
+
+                // For everything else, create the dt/dd structure
+                
+                const dt = document.createElement('dt');
+                dt.textContent = key + ':';
+                row.appendChild(dt);
+                
+                const dd = document.createElement('dd');
+                
+                if (Array.isArray(value)) {
+                    const ul = document.createElement('ul');
+                    value.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        const rendered = renderHypermap(item, path.concat([key, index.toString()]));
+                        li.appendChild(rendered);
+                        ul.appendChild(li);
+                    });
+                    dd.appendChild(ul);
+                } else if (value && typeof value === 'object') {
+                    const rendered = renderHypermap(value, path.concat([key]));
+                    // If it's just a link (control), add it directly, otherwise wrap it
+                    if (rendered.tagName === 'A') {
+                        dd.appendChild(rendered);
+                    } else {
+                        dd.appendChild(rendered);
+                    }
+                } else {
+                    // All primitive values (null, text, numbers) are editable
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'editable';
+                    input.value = value !== null && value !== undefined ? value.toString() : '';
+                    input.dataset.path = JSON.stringify(path.concat([key]));
+                    input.addEventListener('input', handleValueChange);
+                    dd.appendChild(input);
+                }
+                
+                row.appendChild(dd);
+                dl.appendChild(row);
+            });
+            
+            container.appendChild(dl);
+            return container;
+        }
+
+        function handleValueChange(e) {
+            const path = JSON.parse(e.target.dataset.path);
+            const value = e.target.value;
+            
+            if (activeTabIndex >= 0) {
+                const tab = Mech.tabs[activeTabIndex];
+                tab.input(path, value);
+            }
+        }
+
+        async function handleFetch(href) {
+            console.log('Fetch:', href);
+            await openTab(href);
+        }
+    </script>
+</body>
+</html>
