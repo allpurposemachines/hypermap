@@ -23,7 +23,7 @@ function template(body: unknown) {
 const nav = {
 	home: {
 		'#': {
-			href: 'https://localhost:4001/'
+			href: '/'
 		}
 	}
 };
@@ -33,12 +33,12 @@ router
 		const index = {
 			sentimentAnalysisLocal: {
 				'#': {
-					href: 'https://localhost:4001/sentiment/'
+					href: '/sentiment/'
 				}
 			},
 			stocks: {
 				'#': {
-					href: 'https://localhost:4001/stocks/'
+					href: '/stocks/'
 				}
 			}
 		};
@@ -58,7 +58,7 @@ router
 	.get('/stocks/', ctx => {
 		const submitOrder = (ticker: string) => ({
 			'#': {
-				href: 'https://localhost:4001/' + ticker + '/order/',
+				href: '/' + ticker + '/order/',
 				method: 'post'
 			},
 			quantity: 0
