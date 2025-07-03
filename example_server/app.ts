@@ -11,7 +11,7 @@ function template(body: unknown) {
 		<html>
 			<head>
 				<title>HyperMap Demo!</title>
-				<script type="module" src="https://localhost:4000/src/index.js"></script>
+				<script type="module" src="https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.4.0/+esm"></script>
 			<head>
 			<body>
 				<pre>${JSON.stringify(body)}</pre>
