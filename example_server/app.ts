@@ -1,3 +1,4 @@
+import { _common } from 'https://jsr.io/@std/path/0.210.0/_common/common.ts';
 import {
 	Application,
 	Router
@@ -10,7 +11,7 @@ function template(body: unknown) {
 		<html>
 			<head>
 				<title>HyperMap Demo!</title>
-				<script type="module" src="https://localhost:4000/src/index.js"></script>
+				<script type="module" src="https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.5.0/+esm"></script>
 			<head>
 			<body>
 				<pre>${JSON.stringify(body)}</pre>
@@ -22,7 +23,7 @@ function template(body: unknown) {
 const nav = {
 	home: {
 		'#': {
-			href: 'https://localhost:4001/'
+			href: '/'
 		}
 	}
 };
@@ -32,12 +33,12 @@ router
 		const index = {
 			sentimentAnalysisLocal: {
 				'#': {
-					href: 'https://localhost:4001/sentiment/'
+					href: '/sentiment/'
 				}
 			},
 			stocks: {
 				'#': {
-					href: 'https://localhost:4001/stocks/'
+					href: '/stocks/'
 				}
 			}
 		};
@@ -57,7 +58,7 @@ router
 	.get('/stocks/', ctx => {
 		const submitOrder = (ticker: string) => ({
 			'#': {
-				href: 'https://localhost:4001/' + ticker + '/order/',
+				href: '/' + ticker + '/order/',
 				method: 'post'
 			},
 			quantity: 0
@@ -70,12 +71,12 @@ router
 			market: {
 				ibm: {
 					ticker: 'IBM',
-					price: 100.0 + Math.random(),
+					price: (100.0 + Math.random()).toFixed(2),
 					submitOrder: submitOrder('IBM')
 				},
 				msft: {
 					ticker: 'MSFT',
-					price: 200.0 + Math.random(),
+					price: (200.0 + Math.random()).toFixed(2),
 					submitOrder: submitOrder('MSFT')
 				}
 			}

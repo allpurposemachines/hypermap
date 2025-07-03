@@ -55,10 +55,15 @@
 			});
 
 			it("parses attributes as properties", () => {
-				// FIXME handle relative URLs
 				const map = Hypermap.fromJSON('{"#": {"href": "https://example.com", "scripts": ["https://example.com/foo.js"]}, "a": 1}');
-				assert.equal(map.attributes.href, "https://example.com/");
-				assert.equal(map.attributes.scripts[0].href, "https://example.com/foo.js");
+				assert.equal(map.attributes.href, "https://example.com");
+				assert.equal(map.attributes.scripts[0], "https://example.com/foo.js");
+			});
+
+      it("parses attributes as properties", () => {
+				const map = Hypermap.fromJSON('{"#": {"href": "/", "scripts": ["/foo.js"]}, "a": 1}');
+				assert.equal(map.attributes.href, "/");
+				assert.equal(map.attributes.scripts[0], "/foo.js");
 			});
 
 			it("doesn't parse invalid attributes", () => {
@@ -158,8 +163,8 @@
 			});
 
 			it("can execute a simple script", async () => {
-				const map = Hypermap.fromJSON('{"#": {"scripts": ["/test/assets/set.js"]}}');
-				assert.equal(map.attributes.scripts[0].pathname, '/test/assets/set.js');
+				const map = Hypermap.fromJSON('{"#": {"scripts": ["/tests/assets/set.js"]}}');
+        assert.equal(map.attributes.scripts[0], '/tests/assets/set.js');
 
 				await globalThis.setHypermap(map);
 

@@ -1,6 +1,6 @@
 {
 	"name": "@allpurposemachines/hypermap-shim",
-	"version": "0.3.0",
+	"version": "0.5.0",
 	"description": "A shim for browsers to be able to parse and run HyperMap APIs",
 	"type": "module",
 	"exports": {
@@ -11,7 +11,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/allpurposemachines/hypermap"
+		"url": "git+https://github.com/allpurposemachines/hypermap.git"
 	},
 	"homepage": "https://www.allpurposemachines.com"
 }

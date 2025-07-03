@@ -54,7 +54,11 @@ class MapNode extends CollectionNode {
 	}
 
 	toJSON() {
-		return Object.fromEntries(this.innerMap);
+		let baseObject = Object.fromEntries(this.innerMap);
+		if (this.attributes.href) {
+			baseObject['#'] = {type: 'control'};
+		}
+		return baseObject;
 	}
 }
 
@@ -169,12 +173,13 @@ class Hypermap extends MapNode {
 			try {
 				let attributes = {};
 				if (value.at('href')) {
-					attributes.href = new URL(value.at('href').value);
+					attributes.href = value.at('href').value;
 				}
 				if (value.at('scripts')) {
 					attributes.scripts = value.at('scripts').innerArray.map(
-						(node) => new URL(node.value, window.location.origin)
+						(node) => node.value
 					);
+					console.log(attributes);
 				}
 				return attributes;
 			} catch(e) {
@@ -193,7 +198,8 @@ class Hypermap extends MapNode {
 		const scripts = this.attributes.scripts || [];
 		return Promise.all(scripts.map(script => {
 			try {
-				return import(script.href);
+				const absoluteUrl = new URL(script, window.location.href);
+				return import(absoluteUrl);
 			} catch(err) {
 				console.log(err);
 			}

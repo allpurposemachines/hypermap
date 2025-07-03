@@ -1,6 +1,6 @@
 {
 	"name": "@allpurposemachines/mech",
-	"version": "0.8.0",
+	"version": "0.9.0",
 	"description": "A client for HyperMap services. Browser only for now.",
 	"type": "module",
 	"exports": {
@@ -16,7 +16,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/allpurposemachines/hypermap"
+		"url": "git+https://github.com/allpurposemachines/hypermap.git"
 	},
 	"homepage": "https://www.allpurposemachines.com"
 }

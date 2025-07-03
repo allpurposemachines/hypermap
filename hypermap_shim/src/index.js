@@ -40,7 +40,8 @@ globalThis.addEventListener('use', (event) => {
 
 	const attrs = event.detail.target.attributes;
 	if (attrs.href) {
-		globalThis.location = attrs.href;
+		const newUrl = new URL(attrs.href, window.location.href);
+		window.location.assign(newUrl);
 	}
 });
 
