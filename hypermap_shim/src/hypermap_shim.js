@@ -54,7 +54,11 @@ class MapNode extends CollectionNode {
 	}
 
 	toJSON() {
-		return Object.fromEntries(this.innerMap);
+		let baseObject = Object.fromEntries(this.innerMap);
+		if (this.attributes.href) {
+			baseObject['#'] = {type: 'control'};
+		}
+		return baseObject;
 	}
 }
 
