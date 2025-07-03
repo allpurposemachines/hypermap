@@ -9,9 +9,3 @@ localhost:4001 {
 	reverse_proxy :8000
 	tls internal
 }
-
-localhost:4002 {
-	file_server
-	root mech_browser
-	tls internal
-}
