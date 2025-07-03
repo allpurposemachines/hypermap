@@ -1,3 +1,4 @@
+import { _common } from 'https://jsr.io/@std/path/0.210.0/_common/common.ts';
 import {
 	Application,
 	Router
@@ -70,12 +71,12 @@ router
 			market: {
 				ibm: {
 					ticker: 'IBM',
-					price: 100.0 + Math.random(),
+					price: (100.0 + Math.random()).toFixed(2),
 					submitOrder: submitOrder('IBM')
 				},
 				msft: {
 					ticker: 'MSFT',
-					price: 200.0 + Math.random(),
+					price: (200.0 + Math.random()).toFixed(2),
 					submitOrder: submitOrder('MSFT')
 				}
 			}
