@@ -22,6 +22,12 @@ if (pre) {
 	console.log('No pre element');
 }
 
+globalThis.HypermapHelpers = {
+	navTo: (url) => {
+		window.location.assign(url);
+	}
+};
+
 globalThis.addEventListener('mutation', (_event) => {
 	if(pre) {
 		pre.innerText = JSON.stringify(globalThis.hypermap, null, 2);
@@ -40,8 +46,17 @@ globalThis.addEventListener('use', (event) => {
 
 	const attrs = event.detail.target.attributes;
 	if (attrs.href) {
-		const newUrl = new URL(attrs.href, window.location.href);
-		window.location.assign(newUrl);
+		if (attrs.method) {
+			fetch(attrs.href,
+				{
+					method: attrs.method,
+					headers: {'Content-Type': 'application/json'}
+				}).then(response => {
+					HypermapHelpers.navTo(response.url);
+				});
+		} else {
+			HypermapHelpers.navTo(attrs.href);
+		}
 	}
 });
 

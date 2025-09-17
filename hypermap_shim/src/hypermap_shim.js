@@ -175,11 +175,13 @@ class Hypermap extends MapNode {
 				if (value.at('href')) {
 					attributes.href = value.at('href').value;
 				}
+				if (value.at('method')) {
+					attributes.method = value.at('method').value;
+				}
 				if (value.at('scripts')) {
 					attributes.scripts = value.at('scripts').innerArray.map(
 						(node) => node.value
 					);
-					console.log(attributes);
 				}
 				return attributes;
 			} catch(e) {

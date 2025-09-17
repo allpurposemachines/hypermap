@@ -60,7 +60,7 @@
 				assert.equal(map.attributes.scripts[0], "https://example.com/foo.js");
 			});
 
-      it("parses attributes as properties", () => {
+			it("parses attributes as properties", () => {
 				const map = Hypermap.fromJSON('{"#": {"href": "/", "scripts": ["/foo.js"]}, "a": 1}');
 				assert.equal(map.attributes.href, "/");
 				assert.equal(map.attributes.scripts[0], "/foo.js");
@@ -164,7 +164,7 @@
 
 			it("can execute a simple script", async () => {
 				const map = Hypermap.fromJSON('{"#": {"scripts": ["/tests/assets/set.js"]}}');
-        assert.equal(map.attributes.scripts[0], '/tests/assets/set.js');
+				assert.equal(map.attributes.scripts[0], '/tests/assets/set.js');
 
 				await globalThis.setHypermap(map);
 
@@ -316,20 +316,45 @@
 		});
 
 		describe('using controls', async () => {
-			it('raises a window event', async () => {
-				const handler = sinon.fake();
-				const map = Hypermap.fromJSON('{"#": {"href": "https://www.example.com/"}}');
+			it('assigns a new location', async () => {
+				const stub = sinon.stub(window.HypermapHelpers, 'navTo');
+				const map = Hypermap.fromJSON('{"#": {"href": "/"}}');
 				await window.setHypermap(map);
-				window.hypermap.addEventListener('use', (event) => {
-					event.preventDefault();
-					handler();
-				});
 
 				window.hypermap.use([]);
-				assert(handler.calledOnce);
+
+				assert(stub.calledOnce);
+				stub.restore();
 			});
 
-			// FIXME add other method types etc.
+			it('makes a POST request before assigning location', async () => {
+				const stubNav = sinon.stub(window.HypermapHelpers, 'navTo');
+				const stubFetch = sinon.stub(window, 'fetch');
+				stubFetch.resolves({
+					status: 302,
+					url: '/redirect/',
+					ok: false
+				});
+
+				const map = Hypermap.fromJSON('{"#": {"href": "/post/", "method": "post"}}');
+				await window.setHypermap(map);
+
+				window.hypermap.use([]);
+
+				// Wait a tick for the .then() callback to execute after the fetch
+				await new Promise(resolve => setTimeout(resolve, 0));
+
+				assert(stubFetch.calledOnce);
+				const call = stubFetch.firstCall;
+				assert.equal(call.args[0], '/post/');
+				assert.equal(call.args[1].method, 'post');
+				assert.equal(call.args[1].headers['Content-Type'], 'application/json');
+				assert(stubNav.calledOnce);
+				assert(stubNav.calledWith('/redirect/'));
+
+				stubFetch.restore();
+				stubNav.restore();
+			});
 		});
 	</script>
 
