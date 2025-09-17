@@ -6,7 +6,7 @@ const router = new Router();
 function template(body: unknown) {
 	const shimUrl = (Deno.env.get('MODE') === 'DEV')
 		? 'https://localhost:4000/src/index.js'
-		: 'https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.5.0/+esm';
+		: 'https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.6.0/+esm';
 	return `<!DOCTYPE html>
 		<html>
 			<head>
