@@ -1,18 +1,18 @@
 import { _common } from 'https://jsr.io/@std/path/0.210.0/_common/common.ts';
-import {
-	Application,
-	Router
-} from 'jsr:@oak/oak@12.6.3';
+import { Application, Router } from 'jsr:@oak/oak@12.6.3';
 
 const router = new Router();
 
 function template(body: unknown) {
+	const shimUrl = (Deno.env.get('MODE') === 'DEV')
+		? 'https://localhost:4000/src/index.js'
+		: 'https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.5.0/+esm';
 	return `<!DOCTYPE html>
 		<html>
 			<head>
 				<title>HyperMap Demo!</title>
-				<script type="module" src="https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.5.0/+esm"></script>
-			<head>
+				<script type="module" src="${shimUrl}"></script>
+			</head>
 			<body>
 				<pre>${JSON.stringify(body)}</pre>
 			</body>
@@ -29,7 +29,7 @@ const nav = {
 };
 
 router
-	.get('/', ctx => {
+	.get('/', (ctx) => {
 		const index = {
 			sentimentAnalysisLocal: {
 				'#': {
@@ -44,7 +44,7 @@ router
 		};
 		ctx.response.body = template({ nav, ...index });
 	})
-	.get('/sentiment/', ctx => {
+	.get('/sentiment/', (ctx) => {
 		const body = {
 			'#': {
 				scripts: ['/sentiment.js'],
@@ -55,10 +55,10 @@ router
 		};
 		ctx.response.body = template({ nav, ...body });
 	})
-	.get('/stocks/', ctx => {
+	.get('/stocks/', (ctx) => {
 		const submitOrder = (ticker: string) => ({
 			'#': {
-				href: '/' + ticker + '/order/',
+				href: ticker + '/orders/',
 				method: 'post'
 			},
 			quantity: 0
@@ -70,28 +70,31 @@ router
 			},
 			market: {
 				ibm: {
-					ticker: 'IBM',
-					price: (100.0 + Math.random()).toFixed(2),
-					submitOrder: submitOrder('IBM')
+					ticker: 'ACRN',
+					price: (200.0 + Math.random()).toFixed(2),
+					submitOrder: submitOrder('ACRN')
 				},
 				msft: {
-					ticker: 'MSFT',
-					price: (200.0 + Math.random()).toFixed(2),
-					submitOrder: submitOrder('MSFT')
+					ticker: 'SCLR',
+					price: (100.0 + Math.random()).toFixed(2),
+					submitOrder: submitOrder('SCLR')
 				}
 			}
 		};
 
 		ctx.response.body = template({ nav, ...body });
 	})
-	.post('/stocks/:ticker/order/', async ctx => {
+	.post('/stocks/:ticker/orders/', async (ctx) => {
 		const body = await ctx.request.body().value;
 		const data = {
-			ticker: ctx.params.ticker, ...body
+			ticker: ctx.params.ticker,
+			...body
 		};
-		ctx.response.redirect(`/stocks/${data.ticker}/purchased/?quantity=${data.quantity}`);
+		ctx.response.redirect(
+			`/stocks/${data.ticker}/currentOrder/?quantity=${data.quantity}`
+		);
 	})
-	.get('/stocks/:ticker/purchased/', ctx => {
+	.get('/stocks/:ticker/currentOrder/', (ctx) => {
 		const body = {
 			'#': {
 				scripts: ['/order.js']
@@ -100,9 +103,6 @@ router
 		};
 
 		ctx.response.body = template({ nav, ...body });
-	})
-	.get('/vscode_redirect/', ctx => {
-		ctx.response.redirect('vscode://all-purpose-machines.apm-explorer/foo?uri=https%3A%2F%2Fservices.allpurposemachines.com%2F');
 	});
 
 const app = new Application();
@@ -111,7 +111,7 @@ app.use(router.routes());
 
 app.use(async (context, next) => {
 	try {
-		context.response.type = 'application/javascript'
+		context.response.type = 'application/javascript';
 		await context.send({
 			root: `${Deno.cwd()}/example_server/assets`
 		});

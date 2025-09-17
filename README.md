@@ -111,7 +111,7 @@ To run the example locally install [Deno](https://deno.com/runtime) and then
 run:
 
 ```sh
-$ deno run --allow-net --allow-read --watch=. example_server/app.ts
+$ MODE=DEV deno run --allow-net --allow-read --allow-env --watch=. example_server/app.ts
 ```
 
 ## Contributing
