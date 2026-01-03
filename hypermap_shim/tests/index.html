@@ -356,6 +356,200 @@
 				stubNav.restore();
 			});
 		});
+
+		describe("tree structure invariants - core behaviors", () => {
+			describe("parentNode property", () => {
+				it("parentNode is null for newly created ValueNode", () => {
+					const node = new ValueNode(42);
+					assert.isNull(node.parentNode);
+				});
+
+				it("parentNode is null for newly created MapNode", () => {
+					const map = new MapNode({}, new Map());
+					assert.isNull(map.parentNode);
+				});
+
+				it("parentNode is null for newly created ListNode", () => {
+					const list = new ListNode([]);
+					assert.isNull(list.parentNode);
+				});
+
+				it("parentNode is read-only (cannot be set directly)", () => {
+					const node = new ValueNode(42);
+					assert.throws(() => {
+						node.parentNode = new MapNode({}, new Map());
+					});
+				});
+			});
+
+			describe("parentNode set in MapNode", () => {
+				it("sets parentNode when using map.set()", () => {
+					const map = new MapNode({}, new Map());
+					const node = new ValueNode(1);
+					map.set('a', node);
+					assert.strictEqual(node.parentNode, map);
+				});
+
+				it("sets parentNode for nested MapNode", () => {
+					const parent = new MapNode({}, new Map());
+					const child = new MapNode({}, new Map());
+					parent.set('nested', child);
+					assert.strictEqual(child.parentNode, parent);
+				});
+
+				it("sets parentNode for nested ListNode", () => {
+					const map = new MapNode({}, new Map());
+					const list = new ListNode([]);
+					map.set('items', list);
+					assert.strictEqual(list.parentNode, map);
+				});
+
+				it("sets parentNode for multiple children", () => {
+					const map = new MapNode({}, new Map());
+					const node1 = new ValueNode(1);
+					const node2 = new ValueNode(2);
+					map.set('a', node1);
+					map.set('b', node2);
+					assert.strictEqual(node1.parentNode, map);
+					assert.strictEqual(node2.parentNode, map);
+				});
+			});
+
+			describe("parentNode set in ListNode", () => {
+				it("sets parentNode when using list.append()", () => {
+					const list = new ListNode([]);
+					const node = new ValueNode(1);
+					list.append(node);
+					assert.strictEqual(node.parentNode, list);
+				});
+
+				it("sets parentNode when using list.prepend()", () => {
+					const list = new ListNode([]);
+					const node = new ValueNode(1);
+					list.prepend(node);
+					assert.strictEqual(node.parentNode, list);
+				});
+
+				it("sets parentNode when using list.insert()", () => {
+					const list = new ListNode([new ValueNode(1), new ValueNode(3)]);
+					const node = new ValueNode(2);
+					list.insert(1, node);
+					assert.strictEqual(node.parentNode, list);
+				});
+
+				it("sets parentNode for multiple appended children", () => {
+					const list = new ListNode([]);
+					const node1 = new ValueNode(1);
+					const node2 = new ValueNode(2);
+					list.append(node1);
+					list.append(node2);
+					assert.strictEqual(node1.parentNode, list);
+					assert.strictEqual(node2.parentNode, list);
+				});
+			});
+
+			describe("parentNode cleared on deletion", () => {
+				it("clears parentNode when using map.delete()", () => {
+					const map = new MapNode({}, new Map());
+					const node = new ValueNode(1);
+					map.set('a', node);
+					map.delete('a');
+					assert.isNull(node.parentNode);
+				});
+
+				it("clears parentNode when using list.delete()", () => {
+					const node = new ValueNode(1);
+					const list = new ListNode([node]);
+					list.delete(0);
+					assert.isNull(node.parentNode);
+				});
+
+				it("clears parentNode only for deleted node, not others", () => {
+					const node1 = new ValueNode(1);
+					const node2 = new ValueNode(2);
+					const list = new ListNode([node1, node2]);
+					list.delete(0);
+					assert.isNull(node1.parentNode);
+					assert.strictEqual(node2.parentNode, list);
+				});
+			});
+
+			describe("cycle detection", () => {
+				it("prevents adding a node to itself", () => {
+					const node = new MapNode({}, new Map());
+					assert.throws(() => {
+						node.set('self', node);
+					}, /cycle/i);
+				});
+
+				it("prevents adding a parent as child", () => {
+					const parent = new MapNode({}, new Map());
+					const child = new MapNode({}, new Map());
+					parent.set('child', child);
+					
+					assert.throws(() => {
+						child.set('parent', parent);
+					}, /cycle/i);
+				});
+
+				it("prevents adding a grandparent as child", () => {
+					const grandparent = new MapNode({}, new Map());
+					const parent = new MapNode({}, new Map());
+					const child = new MapNode({}, new Map());
+					
+					grandparent.set('parent', parent);
+					parent.set('child', child);
+					
+					assert.throws(() => {
+						child.set('grandparent', grandparent);
+					}, /cycle/i);
+				});
+
+				it("preserves tree state when cycle detection fails", () => {
+					const map = new MapNode({}, new Map());
+					const list = new ListNode([]);
+					map.set('items', list);
+					
+					const initialSize = map.size;
+					const initialListParent = list.parentNode;
+					
+					try {
+						list.append(map);
+					} catch (e) {
+						// Expected to throw
+					}
+					
+					assert.equal(map.size, initialSize);
+					assert.strictEqual(list.parentNode, initialListParent);
+					assert.equal(list.size, 0);
+				});
+			});
+
+			describe("parentNode from JSON parsing", () => {
+				it("sets parentNode for parsed map children", () => {
+					const map = Hypermap.fromJSON('{"a": 1, "b": 2}');
+					assert.strictEqual(map.at('a').parentNode, map);
+					assert.strictEqual(map.at('b').parentNode, map);
+				});
+
+				it("sets parentNode for parsed list children", () => {
+					const map = Hypermap.fromJSON('{"items": [1, 2, 3]}');
+					const list = map.at('items');
+					assert.strictEqual(list.at(0).parentNode, list);
+					assert.strictEqual(list.at(1).parentNode, list);
+					assert.strictEqual(list.at(2).parentNode, list);
+				});
+
+				it("sets parentNode for nested parsed structures", () => {
+					const map = Hypermap.fromJSON('{"nested": {"inner": 42}}');
+					const nested = map.at('nested');
+					const inner = nested.at('inner');
+					
+					assert.strictEqual(nested.parentNode, map);
+					assert.strictEqual(inner.parentNode, nested);
+				});
+			});
+		});
 	</script>
 
 	<script class="mocha-exec" type="module">

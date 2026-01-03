@@ -1,13 +1,75 @@
 class Node extends EventTarget {
+	#parent = null;
+
 	constructor() {
 		super();
-		this.parent = null;
+	}
+
+	get parentNode() {
+		return this.#parent;
+	}
+
+	set parentNode(value) {
+		// Only allow setting parentNode if it's currently null (root attachment) and value is non-Node EventTarget
+		if (this.#parent === null && value && !(value instanceof Node) && value instanceof EventTarget) {
+			this.#parent = value;
+		} else if (this.#parent !== null || value === null) {
+			throw new Error('parentNode cannot be changed after attachment');
+		} else {
+			throw new Error('parentNode must be an EventTarget');
+		}
+	}
+
+	_setParentInternal(node) {
+		if (node !== null && !(node instanceof EventTarget)) {
+			throw new Error('Parent must be an EventTarget or null');
+		}
+		if (
+			node && node instanceof Node && (node === this || this.#isAncestor(node))
+		) {
+			throw new Error('Cycle detected: cannot set ancestor as parent');
+		}
+		this.#parent = node;
+	}
+
+	#isAncestor(node) {
+		let current = this.#parent;
+		while (current !== null) {
+			if (current === node) {
+				return true;
+			}
+			current = current.#parent;
+		}
+		return false;
+	}
+
+	reparent(value) {
+		// Check for cycles: is value already an ancestor of this?
+		let current = this;
+		while (current) {
+			if (current === value) {
+				throw new Error('Cycle detected: cannot set ancestor as child');
+			}
+			current = current.parentNode;
+		}
+		// Remove from old parent if it has one
+		if (value.parentNode) {
+			value.parentNode._detachChild(value);
+		}
+	}
+
+	_attachChild(child) {
+		child._setParentInternal(this);
+	}
+
+	_detachChild(child) {
+		child._setParentInternal(null);
 	}
 
 	dispatchEvent(event) {
 		super.dispatchEvent(event);
-		if (this.parent) { // FIXME check for bubbling
-			this.parent.dispatchEvent(event);
+		if (this.#parent) {
+			this.#parent.dispatchEvent(event);
 		}
 	}
 }
@@ -23,7 +85,7 @@ class MapNode extends CollectionNode {
 		super();
 		this.attributes = attributes;
 		this.innerMap = map;
-		this.innerMap.forEach(child => child.parent = this);
+		this.innerMap.forEach((child) => this._attachChild(child));
 	}
 
 	has(key) {
@@ -38,12 +100,18 @@ class MapNode extends CollectionNode {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
+		this.reparent(value);
 		this.innerMap.set(key, value);
+		this._attachChild(value);
 		window.dispatchEvent(new Event('mutation'));
 		return this;
 	}
 
 	delete(key) {
+		const child = this.innerMap.get(key);
+		if (child) {
+			this._detachChild(child);
+		}
 		this.innerMap.delete(key);
 		window.dispatchEvent(new Event('mutation'));
 		return this;
@@ -56,7 +124,7 @@ class MapNode extends CollectionNode {
 	toJSON() {
 		let baseObject = Object.fromEntries(this.innerMap);
 		if (this.attributes.href) {
-			baseObject['#'] = {type: 'control'};
+			baseObject['#'] = { type: 'control' };
 		}
 		return baseObject;
 	}
@@ -66,7 +134,7 @@ class ListNode extends CollectionNode {
 	constructor(array) {
 		super();
 		this.innerArray = array;
-		this.innerArray.forEach(child => child.parent = this);
+		this.innerArray.forEach((child) => this._attachChild(child));
 	}
 
 	at(index) {
@@ -77,7 +145,12 @@ class ListNode extends CollectionNode {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
+		const oldValue = this.innerArray[index];
+		if (oldValue) {
+			this._detachChild(oldValue);
+		}
 		this.innerArray[index] = value;
+		this._attachChild(value);
 		window.dispatchEvent(new Event('mutation'));
 		return this;
 	}
@@ -86,7 +159,9 @@ class ListNode extends CollectionNode {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
+		this.reparent(value);
 		this.innerArray.push(value);
+		this._attachChild(value);
 		window.dispatchEvent(new Event('mutation'));
 		return this;
 	}
@@ -95,7 +170,9 @@ class ListNode extends CollectionNode {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
+		this.reparent(value);
 		this.innerArray.unshift(value);
+		this._attachChild(value);
 		window.dispatchEvent(new Event('mutation'));
 		return this;
 	}
@@ -104,12 +181,18 @@ class ListNode extends CollectionNode {
 		if (!(value instanceof Node)) {
 			throw new Error('Value must be a Node instance');
 		}
+		this.reparent(value);
 		this.innerArray.splice(index, 0, value);
+		this._attachChild(value);
 		window.dispatchEvent(new Event('mutation'));
 		return this;
 	}
 
 	delete(index) {
+		const child = this.innerArray[index];
+		if (child) {
+			this._detachChild(child);
+		}
 		this.innerArray.splice(index, 1);
 		window.dispatchEvent(new Event('mutation'));
 		return this;
@@ -134,6 +217,7 @@ class ValueNode extends Node {
 		return this.value;
 	}
 }
+
 class Hypermap extends MapNode {
 	constructor(rootNode) {
 		super(rootNode.attributes, rootNode.innerMap);
@@ -146,29 +230,39 @@ class Hypermap extends MapNode {
 
 			// Handle arrays
 			if (Array.isArray(value)) {
-				return new ListNode(value.map(v => nodeFromJsonValue(v, allowObjects)));
+				return new ListNode(
+					value.map((v) => nodeFromJsonValue(v, allowObjects)),
+				);
 			}
-	
+
 			// Handle objects
 			if (value && typeof value === 'object') {
 				if (!allowObjects) {
-					throw new Error('Cannot convert object to node. Use a ValueNode class instead.');
+					throw new Error(
+					  'Cannot convert object to node. Use a ValueNode class instead.',
+					);
 				}
 				const attributes = value['#'] || new MapNode();
 				delete value['#'];
 				return new MapNode(
 					attributesFromNode(attributes),
-					new Map(Object.entries(value).map(([k, v]) => [k, nodeFromJsonValue(v, true)]))
+					new Map(
+					  Object.entries(value).map((
+					    [k, v],
+					  ) => [k, nodeFromJsonValue(v, true)]),
+					),
 				);
 			}
 
 			// Otherwise it's a primitive value
 			return new ValueNode(value);
-		}
-	
+		};
+
 		const attributesFromNode = (value) => {
 			if (!(value instanceof MapNode)) {
-				throw new Error('Invalid attributes: must be a simple object with valid keys');
+				throw new Error(
+					'Invalid attributes: must be a simple object with valid keys',
+				);
 			}
 			try {
 				let attributes = {};
@@ -180,29 +274,29 @@ class Hypermap extends MapNode {
 				}
 				if (value.at('scripts')) {
 					attributes.scripts = value.at('scripts').innerArray.map(
-						(node) => node.value
+					  (node) => node.value,
 					);
 				}
 				return attributes;
-			} catch(e) {
+			} catch (e) {
 				throw new Error(`Invalid attribute values: ${e.message}`);
 			}
 		};
-	
+
 		const reviver = (_key, value) => {
 			return nodeFromJsonValue(value, true);
 		};
-	
+
 		return JSON.parse(json, reviver);
 	}
 
 	async start() {
 		const scripts = this.attributes.scripts || [];
-		return Promise.all(scripts.map(script => {
+		return Promise.all(scripts.map((script) => {
 			try {
 				const absoluteUrl = new URL(script, window.location.href);
 				return import(absoluteUrl);
-			} catch(err) {
+			} catch (err) {
 				console.log(err);
 			}
 		}));
@@ -211,14 +305,22 @@ class Hypermap extends MapNode {
 	input(path, value) {
 		const node = this.nodeFromPath(path);
 		node.value = value;
-		const event = new CustomEvent('input', { bubbles: true, cancelable: true, detail: { target: node } });
+		const event = new CustomEvent('input', {
+			bubbles: true,
+			cancelable: true,
+			detail: { target: node },
+		});
 		node.dispatchEvent(event);
 		return node;
 	}
 
 	use(path) {
 		const node = this.nodeFromPath(path);
-		const event = new CustomEvent('use', { bubbles: true, cancelable: true, detail: { target: node }});
+		const event = new CustomEvent('use', {
+			bubbles: true,
+			cancelable: true,
+			detail: { target: node },
+		});
 		node.dispatchEvent(event);
 		return node;
 	}
@@ -238,5 +340,5 @@ export const HypermapShim = {
 	Hypermap,
 	MapNode,
 	ListNode,
-	ValueNode
-}
+	ValueNode,
+};

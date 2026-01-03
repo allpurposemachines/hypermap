@@ -3,7 +3,7 @@ globalThis.HypermapShim = HypermapShim;
 
 globalThis.setHypermap = function(mapNode) {
 	globalThis.hypermap = new HypermapShim.Hypermap(mapNode);
-	globalThis.hypermap.parent = globalThis;
+	globalThis.hypermap.parentNode = globalThis;
 	return globalThis.hypermap.start();
 };
 
