@@ -1,5 +1,4 @@
 use serde_json::Value;
-use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -32,6 +31,7 @@ enum UserEvent {
 struct Tab {
     #[allow(dead_code)]
     webview: wry::webview::WebView,
+    #[allow(dead_code)]
     url: String,
     hypermap: Value,
 }
@@ -54,28 +54,25 @@ fn main() {
             }
             send_command(&format!("open {}", args[2]));
         }
-        "tabs" => {
-            if args.len() < 4 {
-                eprintln!("Usage: mech tabs <index> <command>");
-                return;
-            }
-            let tab_index = args[2].parse::<usize>().unwrap_or(0);
-            let command = args[3..].join(" ");
-            send_command(&format!("tabs {} {}", tab_index, command));
-        }
-        "show" => {
-            if args.len() < 3 {
-                eprintln!("Usage: mech show <index>");
-                return;
-            }
-            send_command(&format!("show {}", args[2]));
-        }
         "close" => {
             if args.len() < 3 {
-                eprintln!("Usage: mech close <index>");
+                eprintln!("Usage: mech close <tab>");
                 return;
             }
             send_command(&format!("close {}", args[2]));
+        }
+        arg if arg.starts_with('@') => {
+            // Handle @N or @N path syntax
+            let tab_ref = &arg[1..];
+
+            if args.len() < 3 {
+                // Just @N - show the tab
+                send_command(&format!("show {}", tab_ref));
+            } else {
+                // @N path - use control at path
+                let path = args[2..].join(" ");
+                send_command(&format!("tabs {} {}", tab_ref, path));
+            }
         }
         _ => print_usage(),
     }
@@ -83,12 +80,12 @@ fn main() {
 
 fn print_usage() {
     println!("Usage:");
-    println!("  mech start           - Start the daemon");
-    println!("  mech stop            - Stop the daemon");
-    println!("  mech open <url>      - Open a new tab");
-    println!("  mech tabs <n> <cmd>  - Send command to tab");
-    println!("  mech show <n>        - Show tab contents");
-    println!("  mech close <n>       - Close tab");
+    println!("  mech start          - Start the daemon");
+    println!("  mech stop           - Stop the daemon");
+    println!("  mech open <url>     - Open a new tab");
+    println!("  mech @<n>           - Show tab contents");
+    println!("  mech @<n> <path>    - Use control at path");
+    println!("  mech close <n>      - Close tab");
 }
 
 fn start_daemon() {
@@ -116,6 +113,8 @@ fn start_daemon() {
     });
 
     // Tab storage
+    // Note: WebView is not Send/Sync, but we only access it from the event loop thread
+    #[allow(clippy::arc_with_non_send_sync)]
     let tabs: Arc<Mutex<Vec<Tab>>> = Arc::new(Mutex::new(Vec::new()));
     let tabs_clone = tabs.clone();
 
@@ -149,10 +148,10 @@ fn socket_listener(proxy: EventLoopProxy<UserEvent>) {
         match stream {
             Ok(mut stream) => {
                 let mut buffer = String::new();
-                if stream.read_to_string(&mut buffer).is_ok() {
-                    if let Some(cmd) = parse_command(&buffer) {
-                        let _ = proxy.send_event(UserEvent::Command(cmd));
-                    }
+                if stream.read_to_string(&mut buffer).is_ok()
+                    && let Some(cmd) = parse_command(&buffer)
+                {
+                    let _ = proxy.send_event(UserEvent::Command(cmd));
                 }
             }
             Err(e) => eprintln!("Socket error: {}", e),
@@ -163,22 +162,22 @@ fn socket_listener(proxy: EventLoopProxy<UserEvent>) {
 fn parse_command(input: &str) -> Option<DaemonCommand> {
     let parts: Vec<&str> = input.split_whitespace().collect();
 
-    match parts.get(0)? {
-        &"open" => Some(DaemonCommand::Open(parts[1..].join(" "))),
-        &"tabs" => {
+    match *parts.first()? {
+        "open" => Some(DaemonCommand::Open(parts[1..].join(" "))),
+        "tabs" => {
             let idx = parts.get(1)?.parse::<usize>().ok()?;
             let cmd = parts[2..].join(" ");
             Some(DaemonCommand::TabCommand(idx, cmd))
         }
-        &"show" => {
+        "show" => {
             let idx = parts.get(1)?.parse::<usize>().ok()?;
             Some(DaemonCommand::Show(idx))
         }
-        &"close" => {
+        "close" => {
             let idx = parts.get(1)?.parse::<usize>().ok()?;
             Some(DaemonCommand::Close(idx))
         }
-        &"shutdown" => Some(DaemonCommand::Shutdown),
+        "shutdown" => Some(DaemonCommand::Shutdown),
         _ => None,
     }
 }
@@ -250,7 +249,7 @@ fn handle_command(
         DaemonCommand::Show(idx) => {
             let tabs_lock = tabs.lock().unwrap();
             if let Some(tab) = tabs_lock.get(idx - 1) {
-                println!("{}", serde_json::to_string_pretty(&tab.hypermap).unwrap());
+                print_hypermap(&tab.hypermap, 0);
             } else {
                 eprintln!("Tab {} not found", idx);
             }
@@ -350,16 +349,14 @@ fn send_to_webview(webview: &wry::webview::WebView, message: &Value) {
 }
 
 fn handle_webview_message(tab_idx: usize, msg: String, tabs: &Arc<Mutex<Vec<Tab>>>) {
-    if let Ok(data) = serde_json::from_str::<Value>(&msg) {
-        if let Some(msg_type) = data.get("type").and_then(|v| v.as_str()) {
-            if msg_type == "mutation" {
-                if let Some(hypermap) = data.get("data") {
-                    let mut tabs_lock = tabs.lock().unwrap();
-                    if let Some(tab) = tabs_lock.get_mut(tab_idx) {
-                        tab.hypermap = hypermap.clone();
-                    }
-                }
-            }
+    if let Ok(data) = serde_json::from_str::<Value>(&msg)
+        && let Some(msg_type) = data.get("type").and_then(|v| v.as_str())
+        && msg_type == "mutation"
+        && let Some(hypermap) = data.get("data")
+    {
+        let mut tabs_lock = tabs.lock().unwrap();
+        if let Some(tab) = tabs_lock.get_mut(tab_idx) {
+            tab.hypermap = hypermap.clone();
         }
     }
 }
@@ -387,4 +384,123 @@ fn stop_daemon() {
 fn cleanup() {
     let _ = fs::remove_file(SOCKET_PATH);
     let _ = fs::remove_file(PID_PATH);
+}
+
+fn print_hypermap(value: &Value, indent: usize) {
+    let indent_str = "  ".repeat(indent);
+
+    match value {
+        Value::Object(map) => {
+            for (key, val) in map {
+                // Skip the "#" metadata key
+                if key == "#" {
+                    continue;
+                }
+
+                // Check if this key has a control marker (has "#" child with type: "control")
+                let is_control = if let Value::Object(obj) = val {
+                    obj.get("#")
+                        .and_then(|v| v.get("type"))
+                        .and_then(|v| v.as_str())
+                        == Some("control")
+                } else {
+                    false
+                };
+
+                // Check if object has non-# children
+                let has_children = if let Value::Object(obj) = val {
+                    obj.iter().any(|(k, _)| k != "#")
+                } else {
+                    matches!(val, Value::Array(_))
+                };
+
+                // Print the value
+                match val {
+                    Value::Object(_) if has_children => {
+                        // Key with children - show with colon
+                        if is_control {
+                            println!("{}\x1b[1m{}\x1b[0m:", indent_str, key); // Bold
+                        } else {
+                            println!("{}{}:", indent_str, key);
+                        }
+                        print_hypermap(val, indent + 1);
+                    }
+                    Value::Object(_) => {
+                        // Control with only "#" key - treat as leaf node
+                        if is_control {
+                            println!("{}\x1b[1m{}\x1b[0m", indent_str, key); // Bold, no colon
+                        } else {
+                            println!("{}{}", indent_str, key);
+                        }
+                    }
+                    Value::Array(_) => {
+                        // Key with children - show with colon
+                        if is_control {
+                            println!("{}\x1b[1m{}\x1b[0m:", indent_str, key); // Bold
+                        } else {
+                            println!("{}{}:", indent_str, key);
+                        }
+                        print_hypermap(val, indent + 1);
+                    }
+                    // Leaf nodes with values - show with colon
+                    Value::String(s) => {
+                        if is_control {
+                            println!("{}\x1b[1m{}\x1b[0m: {}", indent_str, key, s);
+                        } else {
+                            println!("{}{}: {}", indent_str, key, s);
+                        }
+                    }
+                    Value::Number(n) => {
+                        if is_control {
+                            println!("{}\x1b[1m{}\x1b[0m: {}", indent_str, key, n);
+                        } else {
+                            println!("{}{}: {}", indent_str, key, n);
+                        }
+                    }
+                    Value::Bool(b) => {
+                        if is_control {
+                            println!("{}\x1b[1m{}\x1b[0m: {}", indent_str, key, b);
+                        } else {
+                            println!("{}{}: {}", indent_str, key, b);
+                        }
+                    }
+                    Value::Null => {
+                        if is_control {
+                            println!("{}\x1b[1m{}\x1b[0m: null", indent_str, key);
+                        } else {
+                            println!("{}{}: null", indent_str, key);
+                        }
+                    }
+                }
+            }
+        }
+        Value::Array(arr) => {
+            for (i, val) in arr.iter().enumerate() {
+                match val {
+                    Value::Object(_) => {
+                        println!("{}[{}]:", indent_str, i);
+                        print_hypermap(val, indent + 1);
+                    }
+                    Value::Array(_) => {
+                        println!("{}[{}]:", indent_str, i);
+                        print_hypermap(val, indent + 1);
+                    }
+                    Value::String(s) => println!("{}[{}] {}", indent_str, i, s),
+                    Value::Number(n) => println!("{}[{}] {}", indent_str, i, n),
+                    Value::Bool(b) => println!("{}[{}] {}", indent_str, i, b),
+                    Value::Null => println!("{}[{}] null", indent_str, i),
+                }
+            }
+        }
+        _ => {
+            // For scalar values at root level
+            match value {
+                Value::String(s) => println!("{}{}", indent_str, s),
+                Value::Number(n) => println!("{}{}", indent_str, n),
+                Value::Bool(b) => println!("{}{}", indent_str, b),
+                Value::Null => println!("{}null", indent_str),
+                _ => {}
+            }
+        }
+    }
 }
