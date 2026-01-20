@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use serde_json::Value;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process;
 use std::sync::mpsc;
@@ -88,6 +88,7 @@ enum DaemonCommand {
     Show {
         tab: String,
         path: Option<String>,
+        color: bool,
     },
     Use {
         tab: String,
@@ -137,9 +138,14 @@ fn main() {
         }
         Commands::Show { target } => {
             let (tab, path) = parse_target(&target);
+            let color_flag = if std::io::stdout().is_terminal() {
+                " --color"
+            } else {
+                ""
+            };
             match path {
-                Some(p) => send_command(&format!("show {} {}", tab, p)),
-                None => send_command(&format!("show {}", tab)),
+                Some(p) => send_command(&format!("show {} {}{}", tab, p, color_flag)),
+                None => send_command(&format!("show {}{}", tab, color_flag)),
             }
         }
         Commands::Use { target, data } => {
@@ -283,14 +289,20 @@ fn parse_command(input: &str) -> Option<DaemonCommand> {
             Some(DaemonCommand::Open { url, name })
         }
         "show" => {
-            // show <tab> [path]
+            // show <tab> [path] [--color]
             let tab = parts.get(1)?.to_string();
-            let path = if parts.len() > 2 {
-                Some(parts[2..].join("/"))
-            } else {
+            let color = parts.contains(&"--color");
+            let path_parts: Vec<&str> = parts[2..]
+                .iter()
+                .filter(|&&p| p != "--color")
+                .copied()
+                .collect();
+            let path = if path_parts.is_empty() {
                 None
+            } else {
+                Some(path_parts.join("/"))
             };
-            Some(DaemonCommand::Show { tab, path })
+            Some(DaemonCommand::Show { tab, path, color })
         }
         "use" => {
             // use <tab> <path> [key=value ...]
@@ -428,7 +440,7 @@ fn handle_command(
                 .unwrap_or_else(|| (tab_idx + 1).to_string());
             let _ = response_tx.send(format!("Opened tab {} at {}\n", display_name, url));
         }
-        DaemonCommand::Show { tab, path } => {
+        DaemonCommand::Show { tab, path, color } => {
             let tabs_lock = tabs.lock().unwrap();
             if let Some(idx) = resolve_tab(&tabs_lock, &tab) {
                 let tab_data = &tabs_lock[idx];
@@ -439,7 +451,7 @@ fn handle_command(
                 };
                 match value {
                     Some(v) => {
-                        let _ = response_tx.send(format_hypermap(v, 0));
+                        let _ = response_tx.send(format_hypermap_styled(v, 0, color));
                     }
                     None => {
                         let _ = response_tx.send("Path not found\n".to_string());
@@ -650,13 +662,18 @@ fn cleanup() {
     let _ = fs::remove_file(pid_path());
 }
 
+#[cfg(test)]
 fn format_hypermap(value: &Value, indent: usize) -> String {
+    format_hypermap_styled(value, indent, false)
+}
+
+fn format_hypermap_styled(value: &Value, indent: usize, use_color: bool) -> String {
     let mut output = String::new();
-    format_hypermap_recursive(value, indent, &mut output);
+    format_hypermap_recursive(value, indent, &mut output, use_color);
     output
 }
 
-fn format_hypermap_recursive(value: &Value, indent: usize, output: &mut String) {
+fn format_hypermap_recursive(value: &Value, indent: usize, output: &mut String, use_color: bool) {
     use std::fmt::Write;
     let indent_str = "  ".repeat(indent);
 
@@ -685,81 +702,59 @@ fn format_hypermap_recursive(value: &Value, indent: usize, output: &mut String) 
                     matches!(val, Value::Array(_))
                 };
 
+                // Build suffix: @ for control, / for has children
+                let suffix = match (is_control, has_children) {
+                    (true, true) => "@/",
+                    (true, false) => "@",
+                    (false, true) => "/",
+                    (false, false) => "",
+                };
+
+                // Format the key with optional bold for controls
+                let formatted_key = if is_control && use_color {
+                    format!("\x1b[1m{}{}\x1b[0m", key, suffix)
+                } else {
+                    format!("{}{}", key, suffix)
+                };
+
                 // Format the value
                 match val {
-                    Value::Object(_) if has_children => {
-                        // Key with children - show with colon
-                        if is_control {
-                            writeln!(output, "{}\x1b[1m{}\x1b[0m:", indent_str, key).unwrap();
-                        } else {
-                            writeln!(output, "{}{}:", indent_str, key).unwrap();
-                        }
-                        format_hypermap_recursive(val, indent + 1, output);
-                    }
-                    Value::Object(_) => {
-                        // Control with only "#" key - treat as leaf node
-                        if is_control {
-                            writeln!(output, "{}\x1b[1m{}\x1b[0m", indent_str, key).unwrap();
-                        } else {
-                            writeln!(output, "{}{}", indent_str, key).unwrap();
+                    Value::Object(_) | Value::Array(_) => {
+                        writeln!(output, "{}{}", indent_str, formatted_key).unwrap();
+                        if has_children {
+                            format_hypermap_recursive(val, indent + 1, output, use_color);
                         }
                     }
-                    Value::Array(_) => {
-                        // Key with children - show with colon
-                        if is_control {
-                            writeln!(output, "{}\x1b[1m{}\x1b[0m:", indent_str, key).unwrap();
-                        } else {
-                            writeln!(output, "{}{}:", indent_str, key).unwrap();
-                        }
-                        format_hypermap_recursive(val, indent + 1, output);
-                    }
-                    // Leaf nodes with values - show with colon
+                    // Leaf nodes with values
                     Value::String(s) => {
-                        if is_control {
-                            writeln!(output, "{}\x1b[1m{}\x1b[0m: {}", indent_str, key, s).unwrap();
-                        } else {
-                            writeln!(output, "{}{}: {}", indent_str, key, s).unwrap();
-                        }
+                        writeln!(output, "{}{}: {}", indent_str, formatted_key, s).unwrap();
                     }
                     Value::Number(n) => {
-                        if is_control {
-                            writeln!(output, "{}\x1b[1m{}\x1b[0m: {}", indent_str, key, n).unwrap();
-                        } else {
-                            writeln!(output, "{}{}: {}", indent_str, key, n).unwrap();
-                        }
+                        writeln!(output, "{}{}: {}", indent_str, formatted_key, n).unwrap();
                     }
                     Value::Bool(b) => {
-                        if is_control {
-                            writeln!(output, "{}\x1b[1m{}\x1b[0m: {}", indent_str, key, b).unwrap();
-                        } else {
-                            writeln!(output, "{}{}: {}", indent_str, key, b).unwrap();
-                        }
+                        writeln!(output, "{}{}: {}", indent_str, formatted_key, b).unwrap();
                     }
                     Value::Null => {
-                        if is_control {
-                            writeln!(output, "{}\x1b[1m{}\x1b[0m: null", indent_str, key).unwrap();
-                        } else {
-                            writeln!(output, "{}{}: null", indent_str, key).unwrap();
-                        }
+                        writeln!(output, "{}{}: null", indent_str, formatted_key).unwrap();
                     }
                 }
             }
         }
         Value::Array(arr) => {
             for (i, val) in arr.iter().enumerate() {
+                let has_children = matches!(val, Value::Object(_) | Value::Array(_));
+                let suffix = if has_children { "/" } else { "" };
+
                 match val {
-                    Value::Object(_) => {
-                        writeln!(output, "{}[{}]:", indent_str, i).unwrap();
-                        format_hypermap_recursive(val, indent + 1, output);
+                    Value::Object(_) | Value::Array(_) => {
+                        writeln!(output, "{}[{}]{}", indent_str, i, suffix).unwrap();
+                        format_hypermap_recursive(val, indent + 1, output, use_color);
                     }
-                    Value::Array(_) => {
-                        writeln!(output, "{}[{}]:", indent_str, i).unwrap();
-                        format_hypermap_recursive(val, indent + 1, output);
-                    }
-                    Value::String(s) => writeln!(output, "{}[{}] {}", indent_str, i, s).unwrap(),
-                    Value::Number(n) => writeln!(output, "{}[{}] {}", indent_str, i, n).unwrap(),
-                    Value::Bool(b) => writeln!(output, "{}[{}] {}", indent_str, i, b).unwrap(),
-                    Value::Null => writeln!(output, "{}[{}] null", indent_str, i).unwrap(),
+                    Value::String(s) => writeln!(output, "{}[{}]: {}", indent_str, i, s).unwrap(),
+                    Value::Number(n) => writeln!(output, "{}[{}]: {}", indent_str, i, n).unwrap(),
+                    Value::Bool(b) => writeln!(output, "{}[{}]: {}", indent_str, i, b).unwrap(),
+                    Value::Null => writeln!(output, "{}[{}]: null", indent_str, i).unwrap(),
                 }
             }
         }
@@ -810,14 +805,32 @@ mod tests {
     #[test]
     fn parse_command_show() {
         let cmd = parse_command("show 1").unwrap();
-        assert!(matches!(cmd, DaemonCommand::Show { ref tab, path: None } if tab == "1"));
+        assert!(
+            matches!(cmd, DaemonCommand::Show { ref tab, path: None, color: false } if tab == "1")
+        );
     }
 
     #[test]
     fn parse_command_show_with_path() {
         let cmd = parse_command("show 1 nav/home").unwrap();
         assert!(
-            matches!(cmd, DaemonCommand::Show { ref tab, ref path } if tab == "1" && path.as_deref() == Some("nav/home"))
+            matches!(cmd, DaemonCommand::Show { ref tab, ref path, color: false } if tab == "1" && path.as_deref() == Some("nav/home"))
+        );
+    }
+
+    #[test]
+    fn parse_command_show_with_color() {
+        let cmd = parse_command("show 1 --color").unwrap();
+        assert!(
+            matches!(cmd, DaemonCommand::Show { ref tab, path: None, color: true } if tab == "1")
+        );
+    }
+
+    #[test]
+    fn parse_command_show_with_path_and_color() {
+        let cmd = parse_command("show 1 nav/home --color").unwrap();
+        assert!(
+            matches!(cmd, DaemonCommand::Show { ref tab, ref path, color: true } if tab == "1" && path.as_deref() == Some("nav/home"))
         );
     }
 
@@ -1012,23 +1025,34 @@ mod tests {
     fn format_hypermap_nested_object() {
         let value = json!({"nav": {"home": "/"} });
         let output = format_hypermap(&value, 0);
-        assert_eq!(output, "nav:\n  home: /\n");
+        // nav has children, so it gets /
+        assert_eq!(output, "nav/\n  home: /\n");
     }
 
     #[test]
     fn format_hypermap_array() {
         let value = json!({"items": [1, 2, 3]});
         let output = format_hypermap(&value, 0);
-        assert_eq!(output, "items:\n  [0] 1\n  [1] 2\n  [2] 3\n");
+        // items has children (array), so it gets /
+        assert_eq!(output, "items/\n  [0]: 1\n  [1]: 2\n  [2]: 3\n");
     }
 
     #[test]
-    fn format_hypermap_control_bold() {
+    fn format_hypermap_control_no_children() {
         // Control is an object with only "#" key containing type: "control"
         let value = json!({"home": {"#": {"type": "control"}}});
         let output = format_hypermap(&value, 0);
-        // Should be bold (ANSI codes) with no colon (leaf control)
-        assert_eq!(output, "\x1b[1mhome\x1b[0m\n");
+        // Control with no children gets @ suffix (no bold without color flag)
+        assert_eq!(output, "home@\n");
+    }
+
+    #[test]
+    fn format_hypermap_control_with_color() {
+        // Control with color enabled
+        let value = json!({"home": {"#": {"type": "control"}}});
+        let output = format_hypermap_styled(&value, 0, true);
+        // Control with color gets bold
+        assert_eq!(output, "\x1b[1mhome@\x1b[0m\n");
     }
 
     #[test]
@@ -1036,8 +1060,17 @@ mod tests {
         // Control with additional children beyond "#"
         let value = json!({"nav": {"#": {"type": "control"}, "label": "Home"}});
         let output = format_hypermap(&value, 0);
-        // Should be bold with colon (has children)
-        assert_eq!(output, "\x1b[1mnav\x1b[0m:\n  label: Home\n");
+        // Control with children gets @/ suffix
+        assert_eq!(output, "nav@/\n  label: Home\n");
+    }
+
+    #[test]
+    fn format_hypermap_control_with_children_color() {
+        // Control with additional children beyond "#", with color
+        let value = json!({"nav": {"#": {"type": "control"}, "label": "Home"}});
+        let output = format_hypermap_styled(&value, 0, true);
+        // Control with children gets @/ suffix and bold
+        assert_eq!(output, "\x1b[1mnav@/\x1b[0m\n  label: Home\n");
     }
 
     #[test]
