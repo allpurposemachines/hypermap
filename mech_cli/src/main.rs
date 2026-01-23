@@ -24,7 +24,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Start the daemon
-    Start,
+    Start {
+        /// Run in foreground (don't daemonize)
+        #[arg(short, long)]
+        foreground: bool,
+    },
     /// Stop the daemon
     Stop,
     /// Open a URL in a new tab
@@ -38,35 +42,43 @@ enum Commands {
     /// Show tab contents, optionally at a specific path
     Show {
         /// Tab reference with optional path (e.g., "1", "stocks", "1:nav/home")
+        #[arg(value_name = "TAB[:PATH]")]
         target: String,
     },
     /// Use a control at a path
     Use {
         /// Tab and path (e.g., "1:nav/home", "stocks:submit")
+        #[arg(value_name = "TAB:PATH")]
         target: String,
         /// Form data as key=value pairs
+        #[arg(value_name = "KEY=VALUE")]
         data: Vec<String>,
     },
     /// Fork a tab by following a control into a new tab
     Fork {
         /// Tab and path (e.g., "1:nav/home", "stocks:submit")
+        #[arg(value_name = "TAB:PATH")]
         target: String,
         /// Optional name for the new tab
         #[arg(short, long)]
         name: Option<String>,
         /// Form data as key=value pairs
+        #[arg(value_name = "KEY=VALUE")]
         data: Vec<String>,
     },
     /// Close a tab
     Close {
         /// Tab reference (index or name)
+        #[arg(value_name = "TAB")]
         tab: String,
     },
     /// Name or rename a tab
     Name {
         /// Tab reference (index or current name)
+        #[arg(value_name = "TAB")]
         tab: String,
         /// New name for the tab
+        #[arg(value_name = "NAME")]
         name: String,
     },
     /// List all open tabs
@@ -111,7 +123,7 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Start => servo_daemon::start_daemon(),
+        Commands::Start { foreground } => servo_daemon::start_daemon(foreground),
         Commands::Stop => stop_daemon(),
         Commands::Open { url, name } => {
             let name_part = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
@@ -131,13 +143,19 @@ fn main() {
         }
         Commands::Use { target, data } => {
             let (tab, path) = parse_target(&target);
-            let path = path.unwrap_or_default();
+            let Some(path) = path else {
+                eprintln!("error: use requires a path (e.g., \"{}:path/to/control\")", tab);
+                std::process::exit(1);
+            };
             let data_str = data.join(" ");
             send_command(&format!("use {} {} {}", tab, path, data_str));
         }
         Commands::Fork { target, name, data } => {
             let (tab, path) = parse_target(&target);
-            let path = path.unwrap_or_default();
+            let Some(path) = path else {
+                eprintln!("error: fork requires a path (e.g., \"{}:path/to/control\")", tab);
+                std::process::exit(1);
+            };
             let name_part = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
             let data_str = data.join(" ");
             send_command(&format!("fork {} {}{} {}", tab, path, name_part, data_str));

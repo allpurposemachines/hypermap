@@ -6,7 +6,7 @@ set -e
 # Uses hypermap-example.deno.dev as test server
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MECH_BIN="${SCRIPT_DIR}/../target/debug/mech_cli"
+MECH_BIN="${SCRIPT_DIR}/../target/debug/mech"
 
 # Use temp paths for isolation from any running daemon
 export MECH_SOCKET_PATH=$(mktemp -u /tmp/mech-test.XXXXXX.sock)

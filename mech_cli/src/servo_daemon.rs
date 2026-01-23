@@ -69,7 +69,10 @@ struct DaemonState {
 struct MechServoDelegate;
 
 impl ServoDelegate for MechServoDelegate {
-    // Default implementations are fine for now
+    fn notify_error(&self, error: servo::ServoError) {
+        // Log error but don't crash the daemon
+        eprintln!("Servo error: {:?}", error);
+    }
 }
 
 /// Delegate for handling WebView-level events
@@ -88,9 +91,15 @@ impl WebViewDelegate for MechWebViewDelegate {
         // Paint the frame (required for rendering pipeline to progress)
         webview.paint();
     }
+
+    fn notify_crashed(&self, _webview: WebView, reason: String, _backtrace: Option<String>) {
+        // Log crash but don't take down the daemon
+        // The tab will remain but with no content
+        eprintln!("WebView crashed: {}", reason);
+    }
 }
 
-pub fn start_daemon() {
+pub fn start_daemon(foreground: bool) {
     // Check if already running
     if UnixStream::connect(socket_path()).is_ok() {
         eprintln!("Daemon already running");
@@ -103,40 +112,54 @@ pub fn start_daemon() {
 
     println!("Starting mech daemon...");
 
-    // Daemonize: fork and let parent exit
-    // This gives clean shell output (no background job notification)
-    match unsafe { libc::fork() } {
-        -1 => {
-            eprintln!("Failed to fork");
-            return;
+    if !foreground {
+        // Daemonize: fork and let parent exit
+        // This gives clean shell output (no background job notification)
+        match unsafe { libc::fork() } {
+            -1 => {
+                eprintln!("Failed to fork");
+                return;
+            }
+            0 => {
+                // Child process - continue as daemon
+            }
+            _ => {
+                // Parent process - exit cleanly
+                // Small delay to let child set up socket before parent exits
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                return;
+            }
         }
-        0 => {
-            // Child process - continue as daemon
-        }
-        _ => {
-            // Parent process - exit cleanly
-            // Small delay to let child set up socket before parent exits
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            return;
-        }
-    }
 
-    // Create new session, detach from controlling terminal
-    unsafe {
-        libc::setsid();
+        // Create new session, detach from controlling terminal
+        unsafe {
+            libc::setsid();
+        }
     }
 
     // Write PID file (now with daemon's actual PID)
     fs::write(pid_path(), process::id().to_string()).expect("Failed to write PID file");
 
-    // Redirect stdout/stderr to /dev/null to suppress Servo's output
-    // (like "UNSUPPORTED (log once): POSSIBLE ISSUE: unit 1 GLD_TEXTURE_INDEX_2D...")
-    if let Ok(devnull) = File::options().write(true).open("/dev/null") {
-        let null_fd = devnull.as_raw_fd();
+    // Redirect stdout/stderr - use log file if MECH_LOG is set, otherwise /dev/null
+    // In foreground mode, don't redirect unless MECH_LOG is set
+    let log_path = std::env::var("MECH_LOG").ok();
+    let log_target = if foreground && log_path.is_none() {
+        None // Keep stdout/stderr in foreground mode
+    } else {
+        log_path
+            .as_ref()
+            .and_then(|p| File::options().create(true).append(true).open(p).ok())
+            .or_else(|| File::options().write(true).open("/dev/null").ok())
+    };
+
+    if let Some(log_file) = log_target {
+        let log_fd = log_file.as_raw_fd();
         unsafe {
-            libc::dup2(null_fd, libc::STDOUT_FILENO);
-            libc::dup2(null_fd, libc::STDERR_FILENO);
+            libc::dup2(log_fd, libc::STDOUT_FILENO);
+            libc::dup2(log_fd, libc::STDERR_FILENO);
         }
+        // Keep file open
+        std::mem::forget(log_file);
     }
 
     // Build Servo instance (after redirecting output)
@@ -156,6 +179,11 @@ pub fn start_daemon() {
     std::thread::spawn(move || {
         socket_listener_servo(cmd_tx);
     });
+
+    // Set up panic hook to log panics before crashing
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("Daemon panic: {}", info);
+    }));
 
     // Main event loop
     loop {
@@ -275,13 +303,20 @@ fn handle_command_servo(
                 let tab_data = &state_ref.tabs[idx];
 
                 // Query JavaScript for the current hypermap state
-                // The shim stores the hypermap in globalThis.hypermap
+                // Returns hypermap if available, or diagnostic info if not
                 let script = r#"
                     (function() {
                         if (window.hypermap) {
-                            return JSON.parse(JSON.stringify(window.hypermap));
+                            return { ok: true, data: JSON.parse(JSON.stringify(window.hypermap)) };
                         }
-                        return null;
+                        // No hypermap - gather diagnostic info
+                        return {
+                            ok: false,
+                            readyState: document.readyState,
+                            title: document.title || null,
+                            bodyText: document.body ? document.body.innerText.slice(0, 200) : null,
+                            hasPre: !!document.querySelector('pre')
+                        };
                     })()
                 "#
                 .to_string();
@@ -292,25 +327,36 @@ fn handle_command_servo(
                     .webview
                     .evaluate_javascript(script, move |result| match result {
                         Ok(jsval) => {
-                            let hypermap = jsvalue_to_json(&jsval);
-                            let value = if let Some(ref p) = path_clone {
-                                get_value_at_path(&hypermap, p).cloned()
+                            let response = jsvalue_to_json(&jsval);
+
+                            // Check if we got hypermap data or diagnostic info
+                            if response.get("ok") == Some(&Value::Bool(true)) {
+                                let hypermap = response.get("data").cloned().unwrap_or(Value::Null);
+
+                                let value = if let Some(ref p) = path_clone {
+                                    get_value_at_path(&hypermap, p).cloned()
+                                } else {
+                                    Some(hypermap)
+                                };
+                                match value {
+                                    Some(v) => {
+                                        let _ = response_tx_clone
+                                            .send(crate::format_hypermap_styled(&v, 0, color));
+                                    }
+                                    None => {
+                                        let _ =
+                                            response_tx_clone.send("Path not found\n".to_string());
+                                    }
+                                }
                             } else {
-                                Some(hypermap)
-                            };
-                            match value {
-                                Some(v) => {
-                                    let _ = response_tx_clone
-                                        .send(crate::format_hypermap_styled(&v, 0, color));
-                                }
-                                None => {
-                                    let _ = response_tx_clone.send("Path not found\n".to_string());
-                                }
+                                // No hypermap - format diagnostic error message
+                                let msg = format_load_error(&response);
+                                let _ = response_tx_clone.send(msg);
                             }
                         }
                         Err(e) => {
                             let _ = response_tx_clone
-                                .send(format!("Failed to get hypermap: {:?}\n", e));
+                                .send(format!("Failed to query page: {:?}\n", e));
                         }
                     });
                 // Response will be sent by the callback
@@ -444,4 +490,62 @@ fn get_value_at_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
         }
     }
     Some(current)
+}
+
+/// Format a diagnostic error message when hypermap content is not available
+fn format_load_error(diagnostics: &Value) -> String {
+    let ready_state = diagnostics
+        .get("readyState")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+    let title = diagnostics
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let body_text = diagnostics
+        .get("bodyText")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let has_pre = diagnostics
+        .get("hasPre")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    // Check for common error patterns
+    let title_lower = title.to_lowercase();
+    let body_lower = body_text.to_lowercase();
+
+    if title_lower.contains("not found") || body_lower.contains("not found") || title.contains("404")
+    {
+        return format!("Page not found (404): {}\n", title);
+    }
+
+    if title_lower.contains("error") || body_lower.contains("error") {
+        let error_hint = if !title.is_empty() {
+            title
+        } else {
+            body_text.lines().next().unwrap_or("Unknown error")
+        };
+        return format!("Page error: {}\n", error_hint);
+    }
+
+    if ready_state == "loading" {
+        return "Page is still loading...\n".to_string();
+    }
+
+    if ready_state == "complete" && !has_pre {
+        return "Page loaded but contains no hypermap content (no <pre> element)\n".to_string();
+    }
+
+    if ready_state == "complete" && has_pre {
+        return "Page loaded but hypermap failed to initialize (check if page serves valid JSON)\n"
+            .to_string();
+    }
+
+    // Fallback
+    format!(
+        "No hypermap content (readyState: {}, title: {})\n",
+        ready_state,
+        if title.is_empty() { "<none>" } else { title }
+    )
 }
