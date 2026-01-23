@@ -28,7 +28,14 @@ fi
 echo "=== Starting daemon ==="
 "$MECH_BIN" start &
 DAEMON_PID=$!
-sleep 2  # Give daemon time to start
+
+# Wait for socket to appear (with timeout)
+for i in $(seq 1 20); do
+    if [ -e "$MECH_SOCKET_PATH" ]; then
+        break
+    fi
+    sleep 0.5
+done
 
 # Verify daemon is running
 if [ ! -e "$MECH_SOCKET_PATH" ]; then

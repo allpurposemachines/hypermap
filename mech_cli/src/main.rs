@@ -2,20 +2,15 @@ use clap::{Parser, Subcommand};
 use serde_json::Value;
 use std::fs;
 use std::io::{IsTerminal, Read, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
-use std::process;
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
-use tao::event::{Event, WindowEvent};
-use tao::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
-use tao::window::WindowBuilder;
-use wry::webview::WebViewBuilder;
+use std::os::unix::net::UnixStream;
 
-fn socket_path() -> String {
+mod servo_daemon;
+
+pub fn socket_path() -> String {
     std::env::var("MECH_SOCKET_PATH").unwrap_or_else(|_| "/tmp/mech.sock".to_string())
 }
 
-fn pid_path() -> String {
+pub fn pid_path() -> String {
     std::env::var("MECH_PID_PATH").unwrap_or_else(|_| "/tmp/mech.pid".to_string())
 }
 
@@ -80,7 +75,7 @@ enum Commands {
 
 /// Daemon protocol commands (sent over socket)
 #[derive(Debug, Clone)]
-enum DaemonCommand {
+pub enum DaemonCommand {
     Open {
         url: String,
         name: Option<String>,
@@ -112,25 +107,11 @@ enum DaemonCommand {
     Shutdown,
 }
 
-enum UserEvent {
-    Command(DaemonCommand, mpsc::Sender<String>),
-    WebViewMessage(usize, String),
-}
-
-struct Tab {
-    #[allow(dead_code)]
-    webview: wry::webview::WebView,
-    #[allow(dead_code)]
-    url: String,
-    name: Option<String>,
-    hypermap: Value,
-}
-
 fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Start => start_daemon(),
+        Commands::Start => servo_daemon::start_daemon(),
         Commands::Stop => stop_daemon(),
         Commands::Open { url, name } => {
             let name_part = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
@@ -185,86 +166,7 @@ fn parse_target(target: &str) -> (String, Option<String>) {
     }
 }
 
-fn start_daemon() {
-    // Check if already running by trying to connect to socket
-    if UnixStream::connect(socket_path()).is_ok() {
-        eprintln!("Daemon already running");
-        return;
-    }
-
-    // Clean up stale files from previous crashed runs
-    let _ = fs::remove_file(socket_path());
-    let _ = fs::remove_file(pid_path());
-
-    // Write PID file
-    fs::write(pid_path(), process::id().to_string()).expect("Failed to write PID file");
-
-    println!("Starting mech daemon...");
-
-    let event_loop: EventLoop<UserEvent> = EventLoop::with_user_event();
-    let proxy = event_loop.create_proxy();
-
-    // Start Unix socket listener in separate thread
-    let socket_proxy = proxy.clone();
-    std::thread::spawn(move || {
-        socket_listener(socket_proxy);
-    });
-
-    // Tab storage
-    // Note: WebView is not Send/Sync, but we only access it from the event loop thread
-    #[allow(clippy::arc_with_non_send_sync)]
-    let tabs: Arc<Mutex<Vec<Tab>>> = Arc::new(Mutex::new(Vec::new()));
-    let tabs_clone = tabs.clone();
-
-    event_loop.run(move |event, event_loop, control_flow| {
-        *control_flow = ControlFlow::Wait;
-
-        match event {
-            Event::UserEvent(user_event) => match user_event {
-                UserEvent::Command(cmd, response_tx) => {
-                    handle_command(cmd, &tabs_clone, event_loop, &proxy, response_tx);
-                }
-                UserEvent::WebViewMessage(tab_idx, msg) => {
-                    handle_webview_message(tab_idx, msg, &tabs_clone);
-                }
-            },
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
-                // Don't close on window close request
-            }
-            _ => {}
-        }
-    });
-}
-
-fn socket_listener(proxy: EventLoopProxy<UserEvent>) {
-    let listener = UnixListener::bind(socket_path()).expect("Failed to bind socket");
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                let mut buffer = String::new();
-                if stream.read_to_string(&mut buffer).is_ok()
-                    && let Some(cmd) = parse_command(&buffer)
-                {
-                    let (tx, rx) = mpsc::channel();
-                    let _ = proxy.send_event(UserEvent::Command(cmd, tx));
-                    // Wait for response and send it back to client
-                    if let Ok(response) = rx.recv() {
-                        let _ = stream.write_all(response.as_bytes());
-                        // Explicitly shutdown to signal EOF to client
-                        let _ = stream.shutdown(std::net::Shutdown::Write);
-                    }
-                }
-            }
-            Err(e) => eprintln!("Socket error: {}", e),
-        }
-    }
-}
-
-fn parse_command(input: &str) -> Option<DaemonCommand> {
+pub fn parse_command(input: &str) -> Option<DaemonCommand> {
     let parts: Vec<&str> = input.split_whitespace().collect();
     let cmd = *parts.first()?;
 
@@ -357,278 +259,6 @@ fn parse_command(input: &str) -> Option<DaemonCommand> {
     }
 }
 
-/// Resolve a tab reference (index or name) to an index
-fn resolve_tab(tabs: &[Tab], tab_ref: &str) -> Option<usize> {
-    // Try parsing as index first
-    if let Ok(idx) = tab_ref.parse::<usize>()
-        && idx > 0
-        && idx <= tabs.len()
-    {
-        return Some(idx - 1);
-    }
-    // Try finding by name
-    tabs.iter().position(|t| t.name.as_deref() == Some(tab_ref))
-}
-
-fn handle_command(
-    cmd: DaemonCommand,
-    tabs: &Arc<Mutex<Vec<Tab>>>,
-    event_loop: &tao::event_loop::EventLoopWindowTarget<UserEvent>,
-    proxy: &EventLoopProxy<UserEvent>,
-    response_tx: mpsc::Sender<String>,
-) {
-    match cmd {
-        DaemonCommand::Open { url, name } => {
-            // Check if name is already in use
-            if let Some(ref n) = name {
-                let tabs_lock = tabs.lock().unwrap();
-                if tabs_lock.iter().any(|t| t.name.as_deref() == Some(n)) {
-                    let _ = response_tx.send(format!("Tab name '{}' already in use\n", n));
-                    return;
-                }
-            }
-
-            let full_url = if url.starts_with("http://") || url.starts_with("https://") {
-                url.clone()
-            } else {
-                format!("https://{}", url)
-            };
-
-            let window = WindowBuilder::new()
-                .with_visible(false)
-                .with_title("mech tab")
-                .build(event_loop)
-                .expect("Failed to create window");
-
-            let tab_idx = tabs.lock().unwrap().len();
-            let proxy_clone = proxy.clone();
-
-            let init_script = r#"
-                // Polyfill parent.window.postMessage to use IPC for native CLI
-                if (typeof window.ipc !== 'undefined') {
-                    window.parent = {
-                        window: {
-                            postMessage: function(message, origin) {
-                                window.ipc.postMessage(message);
-                            }
-                        }
-                    };
-                }
-            "#;
-
-            let webview = WebViewBuilder::new(window)
-                .unwrap()
-                .with_url(&full_url)
-                .unwrap()
-                .with_initialization_script(init_script)
-                .with_ipc_handler(move |_window: &tao::window::Window, msg: String| {
-                    let _ = proxy_clone.send_event(UserEvent::WebViewMessage(tab_idx, msg));
-                })
-                .build()
-                .expect("Failed to create webview");
-
-            let tab = Tab {
-                webview,
-                url: full_url,
-                name: name.clone(),
-                hypermap: Value::Object(serde_json::Map::new()),
-            };
-
-            tabs.lock().unwrap().push(tab);
-            let display_name = name
-                .map(|n| format!("{} ({})", tab_idx + 1, n))
-                .unwrap_or_else(|| (tab_idx + 1).to_string());
-            let _ = response_tx.send(format!("Opened tab {} at {}\n", display_name, url));
-        }
-        DaemonCommand::Show { tab, path, color } => {
-            let tabs_lock = tabs.lock().unwrap();
-            if let Some(idx) = resolve_tab(&tabs_lock, &tab) {
-                let tab_data = &tabs_lock[idx];
-                let value = if let Some(p) = path {
-                    get_value_at_path(&tab_data.hypermap, &p)
-                } else {
-                    Some(&tab_data.hypermap)
-                };
-                match value {
-                    Some(v) => {
-                        let _ = response_tx.send(format_hypermap_styled(v, 0, color));
-                    }
-                    None => {
-                        let _ = response_tx.send("Path not found\n".to_string());
-                    }
-                }
-            } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
-            }
-        }
-        DaemonCommand::Use { tab, path, data } => {
-            let tabs_lock = tabs.lock().unwrap();
-            if let Some(idx) = resolve_tab(&tabs_lock, &tab) {
-                let tab_data = &tabs_lock[idx];
-                // Set any form data first
-                for (key, value) in &data {
-                    let full_path = format!("{}/{}", path, key);
-                    let path_vec = parse_path(&full_path);
-                    let value = parse_value(value);
-                    let message = serde_json::json!({
-                        "type": "input",
-                        "path": path_vec,
-                        "value": value
-                    });
-                    send_to_webview(&tab_data.webview, &message);
-                }
-                // Then use the control
-                let path_vec = parse_path(&path);
-                let message = serde_json::json!({
-                    "type": "use",
-                    "path": path_vec
-                });
-                send_to_webview(&tab_data.webview, &message);
-                let _ = response_tx.send(String::new());
-            } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
-            }
-        }
-        DaemonCommand::Fork {
-            tab,
-            path,
-            name,
-            data,
-        } => {
-            // For now, fork is not fully implemented - would need to create new tab
-            // and navigate it. Placeholder response.
-            let _ = response_tx.send(format!(
-                "Fork not yet implemented: {} {} {:?} {:?}\n",
-                tab, path, name, data
-            ));
-        }
-        DaemonCommand::Close { tab } => {
-            let mut tabs_lock = tabs.lock().unwrap();
-            if let Some(idx) = resolve_tab(&tabs_lock, &tab) {
-                tabs_lock.remove(idx);
-                let _ = response_tx.send(format!("Closed tab '{}'\n", tab));
-            } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
-            }
-        }
-        DaemonCommand::Name { tab, name } => {
-            let mut tabs_lock = tabs.lock().unwrap();
-            // Check if new name is already in use
-            if tabs_lock.iter().any(|t| t.name.as_deref() == Some(&name)) {
-                let _ = response_tx.send(format!("Tab name '{}' already in use\n", name));
-                return;
-            }
-            if let Some(idx) = resolve_tab(&tabs_lock, &tab) {
-                tabs_lock[idx].name = Some(name.clone());
-                let _ = response_tx.send(format!("Tab {} renamed to '{}'\n", idx + 1, name));
-            } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
-            }
-        }
-        DaemonCommand::Tabs => {
-            let tabs_lock = tabs.lock().unwrap();
-            if tabs_lock.is_empty() {
-                let _ = response_tx.send("No open tabs\n".to_string());
-            } else {
-                let mut output = String::new();
-                for (i, tab) in tabs_lock.iter().enumerate() {
-                    let name_part = tab
-                        .name
-                        .as_ref()
-                        .map(|n| format!(" ({})", n))
-                        .unwrap_or_default();
-                    output.push_str(&format!("{}{}  {}\n", i + 1, name_part, tab.url));
-                }
-                let _ = response_tx.send(output);
-            }
-        }
-        DaemonCommand::Shutdown => {
-            let _ = response_tx.send(String::new());
-            cleanup();
-            process::exit(0);
-        }
-    }
-}
-
-/// Get a value at a path within a JSON value
-fn get_value_at_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
-    let mut current = value;
-    for component in path.split('/').filter(|s| !s.is_empty()) {
-        match current {
-            Value::Object(map) => {
-                current = map.get(component)?;
-            }
-            Value::Array(arr) => {
-                let idx: usize = component.parse().ok()?;
-                current = arr.get(idx)?;
-            }
-            _ => return None,
-        }
-    }
-    Some(current)
-}
-
-fn parse_path(path_str: &str) -> Vec<Value> {
-    path_str
-        .split('/')
-        .filter(|s| !s.is_empty())
-        .map(|component| {
-            // Try to parse as number, otherwise string
-            if let Ok(num) = component.parse::<i64>() {
-                Value::Number(num.into())
-            } else {
-                Value::String(component.to_string())
-            }
-        })
-        .collect()
-}
-
-fn parse_value(value_str: &str) -> Value {
-    match value_str {
-        "true" | "True" => Value::Bool(true),
-        "false" | "False" => Value::Bool(false),
-        "null" | "None" => Value::Null,
-        s => {
-            // Try number
-            if let Ok(num) = s.parse::<i64>() {
-                Value::Number(num.into())
-            } else if let Ok(num) = s.parse::<f64>() {
-                Value::Number(serde_json::Number::from_f64(num).unwrap())
-            } else {
-                // String (remove quotes if present)
-                let trimmed = s.trim_matches('"').trim_matches('\'');
-                Value::String(trimmed.to_string())
-            }
-        }
-    }
-}
-
-fn send_to_webview(webview: &wry::webview::WebView, message: &Value) {
-    let script = format!(
-        r#"window.dispatchEvent(new MessageEvent('message', {{
-            data: {}
-        }}));"#,
-        serde_json::to_string(&serde_json::to_string(message).unwrap()).unwrap()
-    );
-
-    if let Err(e) = webview.evaluate_script(&script) {
-        eprintln!("Failed to send message to webview: {}", e);
-    }
-}
-
-fn handle_webview_message(tab_idx: usize, msg: String, tabs: &Arc<Mutex<Vec<Tab>>>) {
-    if let Ok(data) = serde_json::from_str::<Value>(&msg)
-        && let Some(msg_type) = data.get("type").and_then(|v| v.as_str())
-        && msg_type == "mutation"
-        && let Some(hypermap) = data.get("data")
-    {
-        let mut tabs_lock = tabs.lock().unwrap();
-        if let Some(tab) = tabs_lock.get_mut(tab_idx) {
-            tab.hypermap = hypermap.clone();
-        }
-    }
-}
-
 fn send_command(cmd: &str) {
     match UnixStream::connect(socket_path()) {
         Ok(mut stream) => {
@@ -657,7 +287,7 @@ fn stop_daemon() {
     println!("Daemon stopped");
 }
 
-fn cleanup() {
+pub fn cleanup() {
     let _ = fs::remove_file(socket_path());
     let _ = fs::remove_file(pid_path());
 }
@@ -667,7 +297,7 @@ fn format_hypermap(value: &Value, indent: usize) -> String {
     format_hypermap_styled(value, indent, false)
 }
 
-fn format_hypermap_styled(value: &Value, indent: usize, use_color: bool) -> String {
+pub fn format_hypermap_styled(value: &Value, indent: usize, use_color: bool) -> String {
     let mut output = String::new();
     format_hypermap_recursive(value, indent, &mut output, use_color);
     output
@@ -908,87 +538,6 @@ mod tests {
         // show now accepts tab references (name or index)
         let cmd = parse_command("show myapp").unwrap();
         assert!(matches!(cmd, DaemonCommand::Show { ref tab, .. } if tab == "myapp"));
-    }
-
-    // parse_path tests
-
-    #[test]
-    fn parse_path_simple() {
-        let path = parse_path("foo");
-        assert_eq!(path, vec![json!("foo")]);
-    }
-
-    #[test]
-    fn parse_path_nested() {
-        let path = parse_path("foo/bar/baz");
-        assert_eq!(path, vec![json!("foo"), json!("bar"), json!("baz")]);
-    }
-
-    #[test]
-    fn parse_path_with_numeric() {
-        let path = parse_path("items/0/name");
-        assert_eq!(path, vec![json!("items"), json!(0), json!("name")]);
-    }
-
-    #[test]
-    fn parse_path_empty() {
-        let path = parse_path("");
-        assert_eq!(path, Vec::<Value>::new());
-    }
-
-    #[test]
-    fn parse_path_leading_slash() {
-        let path = parse_path("/foo/bar");
-        assert_eq!(path, vec![json!("foo"), json!("bar")]);
-    }
-
-    #[test]
-    fn parse_path_trailing_slash() {
-        let path = parse_path("foo/bar/");
-        assert_eq!(path, vec![json!("foo"), json!("bar")]);
-    }
-
-    // parse_value tests
-
-    #[test]
-    fn parse_value_true() {
-        assert_eq!(parse_value("true"), json!(true));
-        assert_eq!(parse_value("True"), json!(true));
-    }
-
-    #[test]
-    fn parse_value_false() {
-        assert_eq!(parse_value("false"), json!(false));
-        assert_eq!(parse_value("False"), json!(false));
-    }
-
-    #[test]
-    fn parse_value_null() {
-        assert_eq!(parse_value("null"), json!(null));
-        assert_eq!(parse_value("None"), json!(null));
-    }
-
-    #[test]
-    fn parse_value_integer() {
-        assert_eq!(parse_value("123"), json!(123));
-        assert_eq!(parse_value("-42"), json!(-42));
-    }
-
-    #[test]
-    fn parse_value_float() {
-        assert_eq!(parse_value("45.67"), json!(45.67));
-        assert_eq!(parse_value("-3.14"), json!(-3.14));
-    }
-
-    #[test]
-    fn parse_value_string() {
-        assert_eq!(parse_value("hello"), json!("hello"));
-    }
-
-    #[test]
-    fn parse_value_quoted_string() {
-        assert_eq!(parse_value("\"hello world\""), json!("hello world"));
-        assert_eq!(parse_value("'hello world'"), json!("hello world"));
     }
 
     // format_hypermap tests

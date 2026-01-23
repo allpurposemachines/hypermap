@@ -4,11 +4,18 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-wry = "0.24"
-tao = "0.16"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 clap = { version = "4.0", features = ["derive"] }
+
+# Servo browser engine for headless operation
+servo = { git = "https://github.com/servo/servo", branch = "main", package = "libservo" }
+dpi = "0.1"
+url = "2.5"
+libc = "0.2"
+
+# Force rustls to enable aws_lc_rs feature for Servo compatibility
+rustls = { version = "0.23", features = ["aws_lc_rs"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"
