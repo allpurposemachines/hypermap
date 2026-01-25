@@ -3,16 +3,24 @@ name = "mech_cli"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "mech_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "mech"
 path = "src/main.rs"
+
+[[bin]]
+name = "mechd"
+path = "src/mechd.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 clap = { version = "4.0", features = ["derive"] }
 
-# Servo browser engine for headless operation
+# Servo browser engine for headless operation (used by mechd)
 servo = { git = "https://github.com/servo/servo", branch = "main", package = "libservo" }
 dpi = "0.1"
 url = "2.5"

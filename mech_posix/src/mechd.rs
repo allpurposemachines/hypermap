@@ -1,8 +1,9 @@
 // Headless browser daemon for mech CLI using Servo
 //
-// This module provides a headless browser backend using Servo's SoftwareRenderingContext.
-// It runs without a display server and doesn't suffer from background throttling issues.
+// This is the daemon binary (mechd) that runs the Servo browser engine.
+// It listens on a Unix socket and processes commands from the mech client.
 
+use clap::Parser;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -21,7 +22,15 @@ use servo::{
 };
 use url::Url;
 
-use crate::{DaemonCommand, cleanup, parse_command, pid_path, socket_path};
+use mech_cli::{cleanup, format_hypermap_styled, parse_command, pid_path, socket_path, DaemonCommand};
+
+#[derive(Parser)]
+#[command(name = "mechd", about = "Mech daemon - headless browser backend")]
+struct Cli {
+    /// Run in foreground (don't daemonize)
+    #[arg(short, long)]
+    foreground: bool,
+}
 
 /// Convert Servo's JSValue to serde_json::Value
 fn jsvalue_to_json(jsval: &JSValue) -> Value {
@@ -99,18 +108,21 @@ impl WebViewDelegate for MechWebViewDelegate {
     }
 }
 
-pub fn start_daemon(foreground: bool) {
+fn main() {
+    let cli = Cli::parse();
+    start_daemon(cli.foreground);
+}
+
+fn start_daemon(foreground: bool) {
     // Check if already running
     if UnixStream::connect(socket_path()).is_ok() {
         eprintln!("Daemon already running");
-        return;
+        process::exit(1);
     }
 
     // Clean up stale files
     let _ = fs::remove_file(socket_path());
     let _ = fs::remove_file(pid_path());
-
-    println!("Starting mech daemon...");
 
     if !foreground {
         // Daemonize: fork and let parent exit
@@ -118,7 +130,7 @@ pub fn start_daemon(foreground: bool) {
         match unsafe { libc::fork() } {
             -1 => {
                 eprintln!("Failed to fork");
-                return;
+                process::exit(1);
             }
             0 => {
                 // Child process - continue as daemon
@@ -177,7 +189,7 @@ pub fn start_daemon(foreground: bool) {
     // Start socket listener thread
     let (cmd_tx, cmd_rx) = mpsc::channel::<(DaemonCommand, mpsc::Sender<String>)>();
     std::thread::spawn(move || {
-        socket_listener_servo(cmd_tx);
+        socket_listener(cmd_tx);
     });
 
     // Set up panic hook to log panics before crashing
@@ -189,7 +201,7 @@ pub fn start_daemon(foreground: bool) {
     loop {
         // Process any pending commands
         while let Ok((cmd, response_tx)) = cmd_rx.try_recv() {
-            handle_command_servo(&state, cmd, response_tx);
+            handle_command(&state, cmd, response_tx);
         }
 
         // Spin Servo's event loop to process rendering/JS
@@ -203,7 +215,7 @@ pub fn start_daemon(foreground: bool) {
     }
 }
 
-fn socket_listener_servo(cmd_tx: mpsc::Sender<(DaemonCommand, mpsc::Sender<String>)>) {
+fn socket_listener(cmd_tx: mpsc::Sender<(DaemonCommand, mpsc::Sender<String>)>) {
     let listener = UnixListener::bind(socket_path()).expect("Failed to bind socket");
 
     for stream in listener.incoming() {
@@ -228,7 +240,7 @@ fn socket_listener_servo(cmd_tx: mpsc::Sender<(DaemonCommand, mpsc::Sender<Strin
     }
 }
 
-fn handle_command_servo(
+fn handle_command(
     state: &Rc<RefCell<DaemonState>>,
     cmd: DaemonCommand,
     response_tx: mpsc::Sender<String>,
@@ -299,7 +311,7 @@ fn handle_command_servo(
         }
 
         DaemonCommand::Show { tab, path, color } => {
-            if let Some(idx) = resolve_tab_servo(&state_ref.tabs, &tab) {
+            if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 let tab_data = &state_ref.tabs[idx];
 
                 // Query JavaScript for the current hypermap state
@@ -341,7 +353,7 @@ fn handle_command_servo(
                                 match value {
                                     Some(v) => {
                                         let _ = response_tx_clone
-                                            .send(crate::format_hypermap_styled(&v, 0, color));
+                                            .send(format_hypermap_styled(&v, 0, color));
                                     }
                                     None => {
                                         let _ =
@@ -366,7 +378,7 @@ fn handle_command_servo(
         }
 
         DaemonCommand::Use { tab, path, data } => {
-            if let Some(idx) = resolve_tab_servo(&state_ref.tabs, &tab) {
+            if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 let tab_data = &state_ref.tabs[idx];
 
                 // Set form data first
@@ -412,7 +424,7 @@ fn handle_command_servo(
         }
 
         DaemonCommand::Close { tab } => {
-            if let Some(idx) = resolve_tab_servo(&state_ref.tabs, &tab) {
+            if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 state_ref.tabs.remove(idx);
                 let _ = response_tx.send(format!("Closed tab '{}'\n", tab));
             } else {
@@ -430,7 +442,7 @@ fn handle_command_servo(
                 let _ = response_tx.send(format!("Tab name '{}' already in use\n", name));
                 return;
             }
-            if let Some(idx) = resolve_tab_servo(&state_ref.tabs, &tab) {
+            if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 state_ref.tabs[idx].name = Some(name.clone());
                 let _ = response_tx.send(format!("Tab {} renamed to '{}'\n", idx + 1, name));
             } else {
@@ -463,7 +475,7 @@ fn handle_command_servo(
     }
 }
 
-fn resolve_tab_servo(tabs: &[Tab], tab_ref: &str) -> Option<usize> {
+fn resolve_tab(tabs: &[Tab], tab_ref: &str) -> Option<usize> {
     // Try parsing as index first
     if let Ok(idx) = tab_ref.parse::<usize>()
         && idx > 0
