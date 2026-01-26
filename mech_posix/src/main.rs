@@ -44,6 +44,15 @@ enum Commands {
         #[arg(value_name = "TAB[:PATH]")]
         target: String,
     },
+    /// Set a value at a path (input without triggering control)
+    Set {
+        /// Tab and path (e.g., "1:market/ibm/submitOrder/quantity")
+        #[arg(value_name = "TAB:PATH")]
+        target: String,
+        /// Value to set
+        #[arg(value_name = "VALUE")]
+        value: String,
+    },
     /// Use a control at a path
     Use {
         /// Tab and path (e.g., "1:nav/home", "stocks:submit")
@@ -105,6 +114,14 @@ fn main() {
                 Some(p) => send_command(&format!("show {} {}{}", tab, p, color_flag)),
                 None => send_command(&format!("show {}{}", tab, color_flag)),
             }
+        }
+        Commands::Set { target, value } => {
+            let (tab, path) = parse_target(&target);
+            let Some(path) = path else {
+                eprintln!("error: set requires a path (e.g., \"{}:path/to/field\")", tab);
+                std::process::exit(1);
+            };
+            send_command(&format!("set {} {} {}", tab, path, value));
         }
         Commands::Use { target, data } => {
             let (tab, path) = parse_target(&target);

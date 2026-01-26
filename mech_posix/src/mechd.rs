@@ -377,6 +377,26 @@ fn handle_command(
             }
         }
 
+        DaemonCommand::Set { tab, path, value } => {
+            if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
+                let tab_data = &state_ref.tabs[idx];
+
+                // Just input the value, don't trigger use
+                let script = format!(
+                    r#"
+                    if (window.hypermap) {{
+                        window.hypermap.input({:?}.split('/'), {:?});
+                    }}
+                    "#,
+                    path, value
+                );
+                tab_data.webview.evaluate_javascript(script, |_| {});
+                let _ = response_tx.send(String::new());
+            } else {
+                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+            }
+        }
+
         DaemonCommand::Use { tab, path, data } => {
             if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 let tab_data = &state_ref.tabs[idx];

@@ -31,6 +31,11 @@ pub enum DaemonCommand {
         path: Option<String>,
         color: bool,
     },
+    Set {
+        tab: String,
+        path: String,
+        value: String,
+    },
     Use {
         tab: String,
         path: String,
@@ -92,6 +97,13 @@ pub fn parse_command(input: &str) -> Option<DaemonCommand> {
                 Some(path_parts.join("/"))
             };
             Some(DaemonCommand::Show { tab, path, color })
+        }
+        "set" => {
+            // set <tab> <path> <value>
+            let tab = parts.get(1)?.to_string();
+            let path = parts.get(2)?.to_string();
+            let value = parts.get(3)?.to_string();
+            Some(DaemonCommand::Set { tab, path, value })
         }
         "use" => {
             // use <tab> <path> [key=value ...]
@@ -315,6 +327,18 @@ mod tests {
         assert!(
             matches!(cmd, DaemonCommand::Show { ref tab, ref path, color: true } if tab == "1" && path.as_deref() == Some("nav/home"))
         );
+    }
+
+    #[test]
+    fn parse_command_set() {
+        let cmd = parse_command("set 1 market/ibm/quantity 100").unwrap();
+        if let DaemonCommand::Set { tab, path, value } = cmd {
+            assert_eq!(tab, "1");
+            assert_eq!(path, "market/ibm/quantity");
+            assert_eq!(value, "100");
+        } else {
+            panic!("Expected Set command");
+        }
     }
 
     #[test]
