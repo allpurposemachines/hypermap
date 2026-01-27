@@ -43,9 +43,7 @@ pub enum DaemonCommand {
     },
     Fork {
         tab: String,
-        path: String,
         name: Option<String>,
-        data: Vec<(String, String)>,
     },
     Close {
         tab: String,
@@ -119,29 +117,19 @@ pub fn parse_command(input: &str) -> Option<DaemonCommand> {
             Some(DaemonCommand::Use { tab, path, data })
         }
         "fork" => {
-            // fork <tab> <path> [--name <name>] [key=value ...]
+            // fork <tab> [--name <name>]
             let tab = parts.get(1)?.to_string();
-            let path = parts.get(2)?.to_string();
             let mut name = None;
-            let mut data = Vec::new();
-            let mut i = 3;
+            let mut i = 2;
             while i < parts.len() {
                 if parts[i] == "--name" && i + 1 < parts.len() {
                     name = Some(parts[i + 1].to_string());
                     i += 2;
-                } else if let Some((k, v)) = parts[i].split_once('=') {
-                    data.push((k.to_string(), v.to_string()));
-                    i += 1;
                 } else {
                     i += 1;
                 }
             }
-            Some(DaemonCommand::Fork {
-                tab,
-                path,
-                name,
-                data,
-            })
+            Some(DaemonCommand::Fork { tab, name })
         }
         "close" => {
             let tab = parts.get(1)?.to_string();
@@ -358,6 +346,39 @@ mod tests {
             assert_eq!(data, vec![("quantity".to_string(), "5".to_string())]);
         } else {
             panic!("Expected Use command");
+        }
+    }
+
+    #[test]
+    fn parse_command_fork() {
+        let cmd = parse_command("fork 1").unwrap();
+        if let DaemonCommand::Fork { tab, name } = cmd {
+            assert_eq!(tab, "1");
+            assert_eq!(name, None);
+        } else {
+            panic!("Expected Fork command");
+        }
+    }
+
+    #[test]
+    fn parse_command_fork_with_name() {
+        let cmd = parse_command("fork 1 --name copy").unwrap();
+        if let DaemonCommand::Fork { tab, name } = cmd {
+            assert_eq!(tab, "1");
+            assert_eq!(name, Some("copy".to_string()));
+        } else {
+            panic!("Expected Fork command");
+        }
+    }
+
+    #[test]
+    fn parse_command_fork_by_name() {
+        let cmd = parse_command("fork stocks --name stocks2").unwrap();
+        if let DaemonCommand::Fork { tab, name } = cmd {
+            assert_eq!(tab, "stocks");
+            assert_eq!(name, Some("stocks2".to_string()));
+        } else {
+            panic!("Expected Fork command");
         }
     }
 

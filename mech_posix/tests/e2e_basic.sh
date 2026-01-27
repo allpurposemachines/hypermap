@@ -85,22 +85,52 @@ else
     exit 1
 fi
 
-echo "=== Test: Open named tab ==="
-"$MECH_BIN" open https://hypermap-example.deno.dev/ --name stocks
-sleep 3
+echo "=== Test: Use control (navigate to stocks) ==="
+"$MECH_BIN" use 1:stocks
+sleep 2  # Wait for navigation
 
-echo "=== Test: Show by name ==="
-OUTPUT=$("$MECH_BIN" show stocks)
-if echo "$OUTPUT" | grep -q "nav"; then
-    echo "PASS: Show by name works"
+OUTPUT=$("$MECH_BIN" show 1)
+echo "$OUTPUT"
+if echo "$OUTPUT" | grep -q "market"; then
+    echo "PASS: Use navigated to stocks page (shows market)"
 else
-    echo "FAIL: Show by name failed"
+    echo "FAIL: Use did not navigate correctly"
+    echo "Got: $OUTPUT"
     exit 1
 fi
 
-echo "=== Test: Close by name ==="
-"$MECH_BIN" close stocks
-echo "PASS: Close by name completed"
+echo "=== Test: Fork tab ==="
+"$MECH_BIN" fork 1 --name stocks-copy
+sleep 2  # Wait for fork to load
+
+# Verify the forked tab exists and has the same content
+OUTPUT=$("$MECH_BIN" show stocks-copy)
+if echo "$OUTPUT" | grep -q "market"; then
+    echo "PASS: Fork created tab with same content"
+else
+    echo "FAIL: Fork did not preserve navigation state"
+    echo "Got: $OUTPUT"
+    exit 1
+fi
+
+echo "=== Test: Tabs shows forked tab ==="
+TABS_OUTPUT=$("$MECH_BIN" tabs)
+echo "$TABS_OUTPUT"
+if echo "$TABS_OUTPUT" | grep -q "stocks-copy"; then
+    echo "PASS: Tabs shows forked tab"
+else
+    echo "FAIL: Forked tab not in tabs list"
+    exit 1
+fi
+
+echo "=== Test: Close forked tab ==="
+"$MECH_BIN" close stocks-copy
+echo "PASS: Closed forked tab"
+
+echo "=== Test: Set value ==="
+# Set a value (we can't easily verify the DOM changed, but verify no error)
+"$MECH_BIN" set 1:market/acrn/submitOrder/quantity 10
+echo "PASS: Set command executed without error"
 
 echo "=== Test: Close tab ==="
 "$MECH_BIN" close 1

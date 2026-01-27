@@ -425,22 +425,86 @@ fn handle_command(
                     path
                 );
                 tab_data.webview.evaluate_javascript(script, |_| {});
+
+                // Update the tab's URL after navigation completes
+                let state_clone = state.clone();
+                tab_data
+                    .webview
+                    .evaluate_javascript("window.location.href".to_string(), move |result| {
+                        if let Ok(JSValue::String(url)) = result {
+                            if let Ok(mut state) = state_clone.try_borrow_mut() {
+                                if let Some(tab) = state.tabs.get_mut(idx) {
+                                    tab.url = url;
+                                }
+                            }
+                        }
+                    });
+
                 let _ = response_tx.send(String::new());
             } else {
                 let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
             }
         }
 
-        DaemonCommand::Fork {
-            tab,
-            path,
-            name,
-            data,
-        } => {
-            let _ = response_tx.send(format!(
-                "Fork not yet implemented: {} {} {:?} {:?}\n",
-                tab, path, name, data
-            ));
+        DaemonCommand::Fork { tab, name } => {
+            // Check if name is already in use
+            if let Some(ref n) = name
+                && state_ref.tabs.iter().any(|t| t.name.as_deref() == Some(n))
+            {
+                let _ = response_tx.send(format!("Tab name '{}' already in use\n", n));
+                return;
+            }
+
+            if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
+                let source_url = state_ref.tabs[idx].url.clone();
+
+                // Create a new tab with the same URL
+                let size = PhysicalSize::new(1024, 768);
+                let rendering_context: Rc<dyn RenderingContext> =
+                    match SoftwareRenderingContext::new(size) {
+                        Ok(ctx) => Rc::new(ctx),
+                        Err(e) => {
+                            let _ = response_tx
+                                .send(format!("Failed to create rendering context: {:?}\n", e));
+                            return;
+                        }
+                    };
+
+                let tab_id = state_ref.tab_counter;
+                state_ref.tab_counter += 1;
+
+                let servo_url = match Url::parse(&source_url) {
+                    Ok(u) => u,
+                    Err(e) => {
+                        let _ = response_tx.send(format!("Invalid URL: {:?}\n", e));
+                        return;
+                    }
+                };
+
+                let delegate = Rc::new(MechWebViewDelegate {
+                    state: state.clone(),
+                });
+
+                let webview = WebViewBuilder::new(&state_ref.servo, rendering_context)
+                    .url(servo_url)
+                    .delegate(delegate)
+                    .build();
+
+                let new_tab = Tab {
+                    webview,
+                    url: source_url,
+                    name: name.clone(),
+                };
+
+                state_ref.tabs.push(new_tab);
+
+                let display_name = name
+                    .map(|n| format!("{} ({})", tab_id + 1, n))
+                    .unwrap_or_else(|| (tab_id + 1).to_string());
+                let _ = response_tx.send(format!("Forked to tab {}\n", display_name));
+            } else {
+                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+            }
         }
 
         DaemonCommand::Close { tab } => {

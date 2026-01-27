@@ -62,17 +62,14 @@ enum Commands {
         #[arg(value_name = "KEY=VALUE")]
         data: Vec<String>,
     },
-    /// Fork a tab by following a control into a new tab
+    /// Fork a tab (create a copy)
     Fork {
-        /// Tab and path (e.g., "1:nav/home", "stocks:submit")
-        #[arg(value_name = "TAB:PATH")]
-        target: String,
+        /// Tab to fork (e.g., "1", "stocks")
+        #[arg(value_name = "TAB")]
+        tab: String,
         /// Optional name for the new tab
         #[arg(short, long)]
         name: Option<String>,
-        /// Form data as key=value pairs
-        #[arg(value_name = "KEY=VALUE")]
-        data: Vec<String>,
     },
     /// Close a tab
     Close {
@@ -132,15 +129,9 @@ fn main() {
             let data_str = data.join(" ");
             send_command(&format!("use {} {} {}", tab, path, data_str));
         }
-        Commands::Fork { target, name, data } => {
-            let (tab, path) = parse_target(&target);
-            let Some(path) = path else {
-                eprintln!("error: fork requires a path (e.g., \"{}:path/to/control\")", tab);
-                std::process::exit(1);
-            };
+        Commands::Fork { tab, name } => {
             let name_part = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
-            let data_str = data.join(" ");
-            send_command(&format!("fork {} {}{} {}", tab, path, name_part, data_str));
+            send_command(&format!("fork {}{}", tab, name_part));
         }
         Commands::Close { tab } => {
             send_command(&format!("close {}", tab));
