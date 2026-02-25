@@ -1,17 +1,17 @@
-<nav class="text-md mb-8">
-	<h2 class="font-semibold">Overview</h2>
-	<ul class="ml-2">
+<nav class="sidebar">
+	<h2>Overview</h2>
+	<ul>
 		<li>
-			<a class="hover:underline" href="/">Getting Started</a>
+			<a href="/docs/"{% if url == "/docs/" %} class="active"{% endif %}>About HyperMap and Mech</a>
 		</li>
 		<li>
-			<a class="hover:underline" href="/about/">About HyperMap and Mech</a>
+			<a href="/docs/why/"{% if url == "/docs/why/" %} class="active"{% endif %}>Why HyperMap</a>
 		</li>
 	</ul>
-	<h2 class="font-semibold mt-4">Guides</h2>
-	<ul class="ml-2">
-		<li>
-			<a class="hover:underline" href="/converting-an-api/">Converting an API</a>
-		</li>
+	<h2>Guides</h2>
 	<ul>
+		<li>
+			<a href="/docs/converting-an-api/"{% if url == "/docs/converting-an-api/" %} class="active"{% endif %}>Converting an API</a>
+		</li>
+	</ul>
 </nav>

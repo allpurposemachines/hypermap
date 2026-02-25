@@ -1,17 +1,15 @@
 import lume from "lume/mod.ts";
-import tailwindcss from "lume/plugins/tailwindcss.ts";
-import postcss from "lume/plugins/postcss.ts";
-import typography from "npm:@tailwindcss/typography";
+import nunjucks from "lume/plugins/nunjucks.ts";
 
 const site = lume();
 
-site.use(tailwindcss(
-	{
-		options: {
-			plugins: [typography]
-		}
-	}
-));
-site.use(postcss());
+site.use(nunjucks());
+
+site.add("styles.css");
+
+site.addEventListener("afterBuild", async () => {
+  await Deno.copyFile("../spec/index.html", "./_site/spec/raw.html");
+  await Deno.copyFile("../explorer/index.html", "./_site/explorer/raw.html");
+});
 
 export default site;
