@@ -1,0 +1,976 @@
+<pre class='metadata'>
+Title: HyperMap
+Shortname: hypermap
+Level: 1
+Status: DREAM
+Status Text: Draft Specification
+URL: https://hypermap.dev/spec
+Repository: ???/hypermap
+Editor: Daniel Feichtinger, daniel@auxilit.com
+Abstract: This specification defines HyperMap, a JSON-based hypermedia format for REST APIs. It defines the <code>application/vnd.hypermap+json</code> media type, the HyperMap data model, and the programmatic interfaces for interacting with HyperMap resources.
+Markup Shorthands: markdown yes, dfn yes
+</pre>
+
+<pre class='link-defaults'>
+spec:dom; type:interface; text:EventTarget
+spec:html; type:interface; text:EventSource
+spec:html; type:interface; text:WebSocket
+spec:html; type:interface; text:Document
+spec:dom; type:interface; text:MutationObserver
+</pre>
+
+<h2 id="intro">Introduction</h2>
+
+*This section is non-normative.*
+
+HyperMap is a format for REST APIs that turns them into explorable, interactive
+networks similar to the World Wide Web. It is built around two core ideas:
+
+1. It is <strong>self-descriptive</strong> — metadata about using the API is
+    embedded in responses themselves, reducing the need for out-of-band
+    documentation or machine-readable specifications.
+
+2. It supports <strong>code on demand</strong> — servers can send JavaScript or
+    WebAssembly to the client for execution, enabling dynamic features such as
+    reactive data, streaming, and client-side computation.
+
+A <a>HyperMap resource</a> is a JSON object served with the
+<a>`application/vnd.hypermap+json`</a> media type. It uses a reserved `#` key
+to carry <a for="MapNode">attributes</a> such as navigation links, HTTP methods,
+and script references.
+
+When parsed, a HyperMap resource becomes a tree of <a>nodes</a> — maps, lists,
+and values — that form a DOM-like data model. This tree supports mutation,
+event dispatch with bubbling, and script execution.
+
+<div class="example" id="example-stock-resource">
+A simple HyperMap resource representing a stock price:
+
+<pre highlight="json">
+{
+  "#": {
+    "href": "/stocks/AAPL",
+    "scripts": ["/js/price-stream.js"]
+  },
+  "ticker": "AAPL",
+  "price": 187.42,
+  "company": {
+    "#": { "href": "/companies/AAPL" },
+    "name": "Apple Inc."
+  }
+}
+</pre>
+</div>
+
+
+<h2 id="infrastructure">Infrastructure</h2>
+
+<h3 id="conformance-requirements">Conformance</h3>
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in [[!RFC2119]].
+
+<h3 id="terminology">Terminology</h3>
+
+This specification depends on the following:
+
+: [[!JSON]]
+:: The JSON data interchange format.
+: [[!URL]]
+:: URL parsing and resolution.
+: [[!FETCH]]
+:: The Fetch standard for network requests.
+: [[!ECMASCRIPT]]
+:: The ECMAScript language specification.
+: [[!DOM]]
+:: The DOM standard, specifically the {{EventTarget}} interface.
+: [[!HTML]]
+:: The HTML standard, specifically browsing contexts, navigation, and module
+    script loading.
+: [[!WEBIDL]]
+:: Web IDL type definitions and binding semantics.
+
+
+<h3 id="url-resolution">URL Resolution</h3>
+
+The <dfn export>base URL</dfn> of a <a>HyperMap resource</a> is the URL from
+which the resource was fetched, after any redirects. All relative URLs in a
+resource — including `href` values in <a for="MapNode">attributes</a> and
+script URLs — are resolved against this <a>base URL</a> using the URL
+resolution algorithm defined in [[!URL]].
+
+<div class="note">
+This mirrors the behavior of HTML documents, where relative URLs are resolved
+against the document's URL unless overridden by a `<base>` element.
+HyperMap does not currently define a mechanism to override the base URL.
+</div>
+
+
+<h2 id="format">The HyperMap Format</h2>
+
+<h3 id="media-type">Media Type</h3>
+
+A <dfn export>HyperMap resource</dfn> is served with the media type
+<dfn export>`application/vnd.hypermap+json`</dfn>.
+
+Servers MUST use this media type for all HyperMap responses. Clients SHOULD
+use this media type in `Accept` headers when requesting HyperMap resources.
+
+<h3 id="top-level-structure">Top-Level Structure</h3>
+
+The top level of a <a>HyperMap resource</a> MUST be a JSON object (not an array,
+string, number, boolean, or null).
+
+<div class="note">
+If an existing API returns a bare array at the top level, it must be wrapped
+in an object to be a valid HyperMap resource. For example,
+`[{"title": "Learn HyperMap"}]` should become
+`{"todos": [{"title": "Learn HyperMap"}]}`.
+</div>
+
+<h3 id="attributes-key">The `#` Key</h3>
+
+The key `#` is reserved in HyperMap's JSON serialization. When present on a
+JSON object, its value MUST be a JSON object containing zero or more attributes.
+
+An <dfn export>attributes object</dfn> MAY contain the following members:
+
+: `href`
+:: A string representing a URL, either absolute or relative to the
+    resource's <a>base URL</a>. When present, the containing object becomes a
+    <a>control</a>.
+
+: `method`
+:: A string representing an HTTP method (e.g., `"GET"`, `"POST"`, `"PATCH"`,
+    `"DELETE"`). Defaults to `"GET"` if omitted. Method strings MUST be
+    uppercase. Clients MUST send the method string as-is without normalizing
+    case. Implementations MUST NOT assume a fixed set of HTTP methods — any
+    valid HTTP method is permitted.
+
+: `scripts`
+:: An array of strings, each a URL pointing to a script to be loaded and
+    executed by the <a>HyperMap user agent</a>. Scripts are scoped to the
+    {{MapNode}} that declares them. See [[#scripts]].
+
+The `#` key MUST NOT be treated as regular data. Implementations MUST extract
+it during parsing and store its contents as the <a for="MapNode">attributes</a>
+on the resulting {{MapNode}}.
+
+<h3 id="controls">Controls</h3>
+
+A <dfn export>control</dfn> is a JSON object whose <a for="MapNode">attributes</a>
+include an `href` value. Controls represent navigable references to other
+resources or actions that can be triggered.
+
+A control's `method` defaults to `"GET"` if not specified. The child nodes of
+the control (excluding the `#` key) serve as form fields. For `GET` requests,
+form data is serialized as URL query parameters. For all other methods, form
+data is serialized as a JSON request body.
+
+<div class="example" id="example-controls">
+A list of todos with a control linking to each individual todo, and a control
+for creating new todos:
+
+<pre highlight="json">
+{
+  "todos": [
+    {
+      "#": { "href": "5J0rwwsyh/" },
+      "title": "Learn HyperMap",
+      "completed": false
+    }
+  ],
+  "newTodo": {
+    "#": { "href": "/todos/", "method": "POST" },
+    "title": ""
+  }
+}
+</pre>
+
+The first todo has an `href` pointing to its individual resource. The
+`newTodo` control will `POST` its contents to `/todos/` when triggered.
+</div>
+
+<h3 id="value-types">Value Types</h3>
+
+Within a <a>HyperMap resource</a>, values can be:
+
+: JSON objects
+:: Parsed into {{MapNode}} instances. If the object contains a `#` key,
+    its contents become the node's <a for="MapNode">attributes</a>.
+
+: JSON arrays
+:: Parsed into {{ListNode}} instances.
+
+: JSON primitives
+:: `null`, booleans, numbers, and strings are parsed into {{ValueNode}}
+    instances.
+
+
+<h2 id="model">Data Model</h2>
+
+When a <a>HyperMap resource</a> is parsed, it produces a tree of
+<dfn export>nodes</dfn>. This tree is the HyperMap data model — the equivalent
+of the DOM in HTML.
+
+The class hierarchy is:
+
+<pre>
+  EventTarget
+    └── HypermapNode
+          ├── ValueNode
+          └── CollectionNode
+                ├── MapNode
+                │     └── Hypermap
+                └── ListNode
+</pre>
+
+<h3 id="node-interface">HypermapNode</h3>
+
+{{HypermapNode}} is the abstract base of all nodes in the
+HyperMap tree. It extends {{EventTarget}}.
+
+<pre class="idl">
+[Exposed=*]
+interface HypermapNode : EventTarget {
+  readonly attribute HypermapNode? parentNode;
+};
+</pre>
+
+<div class="note">
+The interface is named <code>HypermapNode</code> in this specification to avoid
+collision with the DOM's {{Node}} interface. Implementations MAY use the name
+<code>Node</code> internally.
+</div>
+
+Every {{HypermapNode}} has a <dfn for="HypermapNode" export>parent</dfn>,
+which is either another {{HypermapNode}} or null. The root node of a
+<a>HyperMap resource</a> has a null parent.
+
+A node's parent is set when it is attached to a tree and MUST NOT be changed
+after attachment, except by internal tree operations (reparenting).
+
+<h4 id="node-event-dispatch">Event Dispatch</h4>
+
+When {{EventTarget/dispatchEvent()}} is called on a {{HypermapNode}}, the
+event propagates through the tree following the
+<a href="https://dom.spec.whatwg.org/#concept-event-dispatch">event dispatch</a>
+algorithm defined in [[!DOM]]:
+
+1. <strong>Capture phase</strong>: Starting from the root node, the event is
+    dispatched on each ancestor down to (but not including) the target node.
+    Only listeners registered with `capture: true` are invoked.
+
+2. <strong>Target phase</strong>: The event is dispatched on the target node
+    itself.
+
+3. <strong>Bubble phase</strong>: The event is dispatched on each ancestor
+    from the target's parent up to the root node. This provides event
+    <dfn export>bubbling</dfn> through the HyperMap tree.
+
+Listeners may call `stopPropagation()` to prevent further dispatch in any
+phase.
+
+<h4 id="reparenting">Reparenting</h4>
+
+Before attaching a node as a child, implementations MUST check for cycles. If
+the node to be attached is an ancestor of the target parent, a cycle exists and
+the operation MUST throw an error.
+
+If the node being attached already has a <a for="HypermapNode">parent</a>, it
+MUST first be detached from its current parent.
+
+<h3 id="collection-node-interface">CollectionNode</h3>
+
+<dfn export>CollectionNode</dfn> is the base type for
+nodes that contain other nodes — either as key-value pairs ({{MapNode}}) or
+as an ordered sequence ({{ListNode}}).
+
+<pre class="idl">
+[Exposed=*]
+interface CollectionNode : HypermapNode {
+  readonly attribute unsigned long size;
+  any toJSON();
+  any toView();
+};
+</pre>
+
+<dl class="domintro">
+  <dt><code><var>collection</var>.size</code></dt>
+  <dd>Returns the number of children in the collection.</dd>
+
+  <dt><code><var>collection</var>.toJSON()</code></dt>
+  <dd>
+    Returns a lossless JSON-serializable representation of the collection.
+    Child nodes are recursively serialized via their own `toJSON()`.
+    The output can be passed back to {{Hypermap/fromJSON()}} to
+    reconstruct an equivalent node tree.
+  </dd>
+
+  <dt><code><var>collection</var>.toView()</code></dt>
+  <dd>
+    Returns a lossy JSON-serializable representation suitable for consumers.
+    Child nodes are recursively converted via their own `toView()`.
+    Controls have their `#` key replaced with `{"type": "control"}` —
+    consumers see that the node is a control but do not receive its
+    full attributes. This is the representation intended for rendering
+    and integration scripts that do not need to know about hypermedia
+    affordances.
+  </dd>
+</dl>
+
+<h3 id="map-node-interface">MapNode</h3>
+
+A {{MapNode}} represents an ordered map of string keys to node
+values. It corresponds to a JSON object in the wire format.
+
+<pre class="idl">
+dictionary HypermapAttributes {
+  USVString href;
+  USVString method = "GET";
+  sequence&lt;USVString> scripts;
+};
+
+[Exposed=*]
+interface MapNode : CollectionNode {
+  readonly attribute HypermapAttributes attributes;
+  boolean has(DOMString key);
+  HypermapNode? at(DOMString key);
+  MapNode set(DOMString key, HypermapNode value);
+  MapNode delete(DOMString key);
+};
+</pre>
+
+The <dfn for="MapNode" export>attributes</dfn> of a {{MapNode}} are
+extracted from the `#` key during parsing. If no `#` key is present, the
+attributes are an empty object.
+
+<dl class="domintro">
+  <dt><code><var>map</var>.has(<var>key</var>)</code></dt>
+  <dd>Returns true if <var>map</var> contains an entry for <var>key</var>.</dd>
+
+  <dt><code><var>map</var>.at(<var>key</var>)</code></dt>
+  <dd>Returns the node associated with <var>key</var>, or null if no such entry exists.</dd>
+
+  <dt><code><var>map</var>.set(<var>key</var>, <var>value</var>)</code></dt>
+  <dd>
+    Sets the entry for <var>key</var> to <var>value</var>.
+    The <var>value</var> MUST be a {{HypermapNode}} instance.
+    If <var>value</var> has an existing parent, it is first reparented.
+    The <var>value</var> is then attached as a child of <var>map</var>.
+    A <a>mutation event</a> is dispatched.
+    Returns <var>map</var>.
+  </dd>
+
+  <dt><code><var>map</var>.delete(<var>key</var>)</code></dt>
+  <dd>
+    Removes the entry for <var>key</var>.
+    If the entry exists, the child node is detached.
+    A <a>mutation event</a> is dispatched.
+    Returns <var>map</var>.
+  </dd>
+</dl>
+
+<h3 id="list-node-interface">ListNode</h3>
+
+A {{ListNode}} represents an ordered sequence of node values.
+It corresponds to a JSON array in the wire format.
+
+<pre class="idl">
+[Exposed=*]
+interface ListNode : CollectionNode {
+  HypermapNode? at(long index);
+  ListNode set(long index, HypermapNode value);
+  ListNode append(HypermapNode value);
+  ListNode prepend(HypermapNode value);
+  ListNode insert(long index, HypermapNode value);
+  ListNode delete(long index);
+};
+</pre>
+
+<dl class="domintro">
+  <dt><code><var>list</var>.at(<var>index</var>)</code></dt>
+  <dd>Returns the node at <var>index</var>. Supports negative indices (from the end).</dd>
+
+  <dt><code><var>list</var>.set(<var>index</var>, <var>value</var>)</code></dt>
+  <dd>
+    Replaces the node at <var>index</var> with <var>value</var>.
+    The <var>value</var> MUST be a {{HypermapNode}} instance.
+    The previous node at that index, if any, is detached.
+    A <a>mutation event</a> is dispatched.
+    Returns <var>list</var>.
+  </dd>
+
+  <dt><code><var>list</var>.append(<var>value</var>)</code></dt>
+  <dd>
+    Adds <var>value</var> to the end of the list.
+    A <a>mutation event</a> is dispatched.
+    Returns <var>list</var>.
+  </dd>
+
+  <dt><code><var>list</var>.prepend(<var>value</var>)</code></dt>
+  <dd>
+    Adds <var>value</var> to the beginning of the list.
+    A <a>mutation event</a> is dispatched.
+    Returns <var>list</var>.
+  </dd>
+
+  <dt><code><var>list</var>.insert(<var>index</var>, <var>value</var>)</code></dt>
+  <dd>
+    Inserts <var>value</var> at <var>index</var>, shifting subsequent elements.
+    A <a>mutation event</a> is dispatched.
+    Returns <var>list</var>.
+  </dd>
+
+  <dt><code><var>list</var>.delete(<var>index</var>)</code></dt>
+  <dd>
+    Removes the node at <var>index</var>, shifting subsequent elements.
+    The removed node is detached.
+    A <a>mutation event</a> is dispatched.
+    Returns <var>list</var>.
+  </dd>
+
+</dl>
+
+<h3 id="value-node-interface">ValueNode</h3>
+
+A {{ValueNode}} wraps a single primitive value.
+
+<pre class="idl">
+[Exposed=*]
+interface ValueNode : HypermapNode {
+  attribute any value;
+  any toJSON();
+  any toView();
+};
+</pre>
+
+The <dfn for="ValueNode" export>value</dfn> of a {{ValueNode}} MUST be one
+of: `null`, a boolean, a number, or a string. These correspond to the JSON
+primitive types.
+
+<dl class="domintro">
+  <dt><code><var>node</var>.value</code></dt>
+  <dd>The primitive value held by this node.</dd>
+
+  <dt><code><var>node</var>.toJSON()</code></dt>
+  <dd>Returns the primitive value. For {{ValueNode}}, `toJSON()` is lossless by definition.</dd>
+
+  <dt><code><var>node</var>.toView()</code></dt>
+  <dd>Returns the primitive value. For {{ValueNode}}, `toView()` is identical to `toJSON()`.</dd>
+</dl>
+
+<h3 id="hypermap-interface">Hypermap</h3>
+
+The {{Hypermap}} interface is the top-level entry point,
+representing a parsed <a>HyperMap resource</a>. It extends {{MapNode}}.
+
+<pre class="idl">
+[Exposed=*]
+interface Hypermap : MapNode {
+  readonly attribute Document? document;
+  static Hypermap fromJSON(USVString json);
+  Promise&lt;sequence&lt;any>> start();
+  ValueNode input(sequence&lt;(DOMString or long)> path, any value);
+  HypermapNode use(sequence&lt;(DOMString or long)> path);
+  HypermapNode nodeFromPath(sequence&lt;(DOMString or long)> path);
+};
+</pre>
+
+<dl class="domintro">
+  <dt><code><var>hypermap</var>.document</code></dt>
+  <dd>
+    Returns the {{Document}} of the browsing context in which this
+    {{Hypermap}} was loaded, or null if running outside a browser
+    environment.
+  </dd>
+
+  <dt><code>Hypermap.fromJSON(<var>json</var>)</code></dt>
+  <dd>Parses a JSON string into a {{Hypermap}} node tree. See [[#parsing]].</dd>
+
+  <dt><code><var>hypermap</var>.start()</code></dt>
+  <dd>Walks the node tree and <a lt="load scripts">loads scripts</a> for
+  every {{MapNode}} that declares them. See [[#script-loading]].</dd>
+
+  <dt><code><var>hypermap</var>.input(<var>path</var>, <var>value</var>)</code></dt>
+  <dd>
+    Resolves <var>path</var> to a {{ValueNode}}, sets its value, and
+    dispatches an <a>input event</a> on the target node.
+    Returns the target node.
+  </dd>
+
+  <dt><code><var>hypermap</var>.use(<var>path</var>)</code></dt>
+  <dd>
+    Resolves <var>path</var> to a {{HypermapNode}} and dispatches a
+    <a>use event</a> on it. Returns the target node.
+  </dd>
+
+  <dt><code><var>hypermap</var>.nodeFromPath(<var>path</var>)</code></dt>
+  <dd>
+    Resolves an array of keys and indices to a node by traversing the tree.
+    Each element of <var>path</var> is used as a key (for {{MapNode}}) or
+    index (for {{ListNode}}) to descend one level.
+  </dd>
+</dl>
+
+<h3 id="parsing">Parsing</h3>
+
+The <code>Hypermap.fromJSON(<var>json</var>)</code> static method parses a JSON
+string into a {{Hypermap}} node tree. The algorithm is as follows:
+
+To <dfn export>parse a HyperMap resource</dfn> from a JSON string |json|:
+
+1. Let |result| be the result of parsing |json| using a JSON reviver that
+    applies the following rules to each value:
+
+    1. If |value| is a JSON primitive (null, boolean, number, or string),
+        return a new {{ValueNode}} with its value set to |value|.
+
+    2. If |value| is a JSON array, return a new {{ListNode}} whose elements
+        are the recursively converted items of the array.
+
+    3. If |value| is a JSON object:
+        1. If |value| has a `#` key, let |attrs| be its value. |attrs| MUST
+            be a JSON object. Extract from |attrs| the `href`, `method`, and
+            `scripts` members and construct a {{HypermapAttributes}} dictionary.
+        2. Remove the `#` key from |value|.
+        3. Return a new {{MapNode}} whose <a for="MapNode">attributes</a>
+            are the extracted {{HypermapAttributes}} (or an empty dictionary
+            if no `#` key was present), with the remaining key-value pairs
+            as children, each recursively converted.
+
+2. Assert: |result| is a {{MapNode}} (since the top level MUST be a JSON
+    object per [[#top-level-structure]]).
+3. Wrap |result| in a new {{Hypermap}} instance and return it.
+
+
+<h2 id="events">Events</h2>
+
+The HyperMap data model uses events to signal changes and interactions.
+
+<h3 id="mutation-events">Mutation Events</h3>
+
+A <dfn export>mutation event</dfn> is an {{Event}} with the name `"mutation"`.
+
+Whenever a tree-modifying operation occurs on a {{MapNode}} or
+{{ListNode}} — specifically {{MapNode/set()}}, {{MapNode/delete()}},
+{{ListNode/set()}}, {{ListNode/append()}}, {{ListNode/prepend()}},
+{{ListNode/insert()}}, or {{ListNode/delete()}} — a <a>mutation event</a> MUST
+be dispatched on the global object (`window` in browser environments).
+
+<div class="note">
+The current mutation event model dispatches synchronously on the global object.
+This is analogous to the deprecated DOM Mutation Events, which were replaced by
+{{MutationObserver}} in [[!DOM]] due to performance concerns. Future versions
+of this specification are expected to adopt an observer-based model, where
+scripts register observers on specific nodes and receive batched, asynchronous
+notifications of changes within their subtree. This would align with both the
+DOM's current approach and HyperMap's scoped script model, where each script
+naturally observes only its own portion of the tree.
+</div>
+
+<h3 id="input-events">Input Events</h3>
+
+An <dfn export>input event</dfn> is a {{CustomEvent}} with the name `"input"`.
+It is dispatched when {{Hypermap/input()}} is called.
+
+The event's {{CustomEvent/detail}} object contains a `target` property
+referencing the {{ValueNode}} whose value was set.
+
+Input events are dispatched on the target node and <a>bubble</a> up the tree.
+
+<h3 id="use-events">Use Events</h3>
+
+A <dfn export>use event</dfn> is a {{CustomEvent}} with the name `"use"`. It
+is dispatched when {{Hypermap/use()}} is called.
+
+The event's {{CustomEvent/detail}} object contains a `target` property
+referencing the {{HypermapNode}} that was used.
+
+Use events are dispatched on the target node and <a>bubble</a> up the tree.
+
+<h3 id="event-bubbling">Event Bubbling</h3>
+
+As defined in [[#node-event-dispatch]], events dispatched on any
+{{HypermapNode}} propagate through the tree via capture and bubble phases.
+This enables listeners at any level of the tree to observe events from their
+descendants.
+
+
+<h2 id="scripts">Script Execution</h2>
+
+HyperMap supports code on demand: servers can include script references in
+their responses, and clients execute those scripts.
+
+<h3 id="script-declaration">Script Declaration</h3>
+
+Scripts are declared in the <a for="MapNode">attributes</a> of any {{MapNode}}
+using the `scripts` key. The value MUST be an array of strings, each being a
+URL (absolute or relative) pointing to a script resource.
+
+<div class="example" id="example-script-declaration">
+A resource with scripts at multiple levels of the tree:
+
+<pre highlight="json">
+{
+  "#": {
+    "href": "/stocks",
+    "scripts": ["/js/portfolio-summary.js"]
+  },
+  "AAPL": {
+    "#": {
+      "href": "/stocks/AAPL",
+      "scripts": ["/js/price-stream.js"]
+    },
+    "price": 187.42
+  },
+  "GOOG": {
+    "#": {
+      "href": "/stocks/GOOG",
+      "scripts": ["/js/price-stream.js"]
+    },
+    "price": 141.80
+  }
+}
+</pre>
+
+Each stock node loads its own price streaming script. The root loads a
+portfolio summary script. The same script URL may appear on multiple nodes —
+each instance runs independently with its own scoped reference.
+</div>
+
+<h3 id="script-loading">Script Loading</h3>
+
+When {{Hypermap/start()}} is called, the <a>HyperMap user agent</a> walks the
+node tree and begins loading scripts for every {{MapNode}} that declares them.
+
+To <dfn export>load scripts</dfn> for a {{MapNode}} |node|:
+
+1. Let |scripts| be the `scripts` array from |node|'s
+    <a for="MapNode">attributes</a>, or an empty array if not present.
+
+2. For each |scriptURL| in |scripts|, in parallel:
+    1. Resolve |scriptURL| against the resource's <a>base URL</a>.
+    2. Load the script as an ECMAScript module using dynamic `import()`.
+    3. The script's `hypermap` global MUST be set to |node|.
+        See [[#script-environment]].
+
+Scripts load asynchronously. No ordering is guaranteed between scripts on the
+same node or across different nodes.
+
+<h4 id="reactive-script-loading">Reactive Script Loading</h4>
+
+Script loading is reactive to tree mutations. When a tree mutation adds or
+modifies a `scripts` attribute on a {{MapNode}}, the <a>HyperMap user agent</a>
+MUST <a>load scripts</a> for that node.
+
+When a {{MapNode}} is removed from the tree, any scripts that are still loading
+for that node MUST be cancelled. Scripts that have already loaded SHOULD be
+given an opportunity to clean up (e.g., closing network connections) before
+being discarded.
+
+<div class="note">
+A script may modify the tree in ways that trigger further script loading. For
+example, a script could modify the `scripts` array in a child node's
+<a for="MapNode">attributes</a>, causing new scripts to be loaded for that
+node. This enables dynamic composition of behavior.
+</div>
+
+<h3 id="script-environment">Script Environment</h3>
+
+Scripts loaded by a {{MapNode}} execute as ECMAScript modules. Each script
+receives a `hypermap` global that references the {{MapNode}} whose
+<a for="MapNode">attributes</a> declared it — not the root of the tree.
+
+This scoping ensures that scripts are composable: a script that manages a
+stock price stream only needs to know about its own node, not the structure
+of the larger tree. The same script can be attached to multiple nodes and each
+instance operates independently.
+
+<div class="note">
+Implementations SHOULD isolate script execution contexts to prevent scripts
+from accessing nodes outside their scope through global state. The mechanism
+for achieving this isolation (e.g., Secure ECMAScript compartments, iframes,
+or similar sandboxing) is implementation-defined.
+</div>
+
+Scripts interact with their portion of the HyperMap tree through the node
+interfaces defined in [[#model]]. A script may:
+
+- Read values using {{MapNode/at()}} and {{ListNode/at()}}
+- Modify the tree using {{MapNode/set()}}, {{MapNode/delete()}},
+    {{ListNode/append()}}, and related methods
+- Listen for events using {{EventTarget}}'s `addEventListener()` — events
+    from descendant nodes will <a>bubble</a> up through the script's node
+- Establish network connections (e.g., {{EventSource}}, {{WebSocket}}) to
+    update the tree reactively
+
+<div class="example" id="example-websocket-script">
+A script that streams price updates for a single stock. This script is
+attached to a stock node and only modifies its own subtree:
+
+<pre highlight="javascript">
+// `hypermap` refers to the MapNode this script is attached to,
+// e.g. the "AAPL" node, not the root.
+const href = hypermap.attributes.href;
+const stockSocket = new WebSocket(`wss://example.com${href}/stream`);
+
+stockSocket.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  hypermap.set("price", new ValueNode(msg.price));
+};
+</pre>
+</div>
+
+
+<h2 id="processing-model">Processing Model</h2>
+
+This section defines the end-to-end lifecycle of a <a>HyperMap resource</a>
+from initial load through interaction.
+
+<h3 id="resource-lifecycle">Resource Lifecycle</h3>
+
+When a <a>HyperMap user agent</a> loads a resource, it performs the following
+steps:
+
+1. Fetch the resource from the network, including any applicable credentials
+    for <a>user agent requests</a>.
+2. <a>Parse the HyperMap resource</a> from the response body to produce a
+    {{Hypermap}} node tree.
+3. Set the <a>base URL</a> to the response's final URL (after redirects).
+4. If running in a browser, set the {{Hypermap}}'s {{Hypermap/document}}
+    attribute to the enclosing {{Document}}.
+5. Call {{Hypermap/start()}} to <a>load scripts</a> for all {{MapNode}}s in
+    the tree that declare them.
+6. The resource is now live — scripts may modify the tree, listen for events,
+    and establish network connections.
+
+When <a>navigation</a> occurs (via <a>control activation</a> or equivalent),
+the current resource's lifecycle ends: pending script loads are cancelled,
+the node tree is discarded, and the lifecycle begins again from step 1 with
+the new resource.
+
+
+<h2 id="fetching">Fetching and Navigation</h2>
+
+<h3 id="control-activation">Control Activation</h3>
+
+When a <a>control</a> is activated (via {{Hypermap/use()}} or equivalent client
+interaction), the <a>HyperMap user agent</a> SHOULD perform the following:
+
+To <dfn export>activate a control</dfn> on a {{MapNode}} |control|:
+
+1. Let |href| be |control|'s <a for="MapNode">attributes</a>' `href`.
+2. Let |method| be |control|'s <a for="MapNode">attributes</a>' `method`,
+    defaulting to `"GET"`.
+3. Resolve |href| against the resource's <a>base URL</a> to obtain |url|.
+4. If |method| is `"GET"`, serialize the contents of |control| (excluding the
+    `#` key) as URL-encoded query parameters and append them to |url|. Fetch
+    |url| with method GET.
+5. Otherwise, serialize the contents of |control| (excluding the `#` key) as
+    JSON. Fetch |url| with the specified |method|, a `Content-Type` of
+    `application/json`, and the serialized JSON as the request body.
+6. Process the response as defined in [[#form-submission]].
+
+<h3 id="form-submission">Form Submission</h3>
+
+A <dfn export>form submission</dfn> occurs when a <a>control</a> is activated.
+The child nodes of the control
+(excluding the `#` key) serve as form fields — analogous to input elements
+in an HTML form.
+
+To populate a form, a client calls {{Hypermap/input()}} on the {{ValueNode}}
+children of the control to set their values before activation.
+
+<div class="example" id="example-form-submission">
+A control for placing a stock order:
+
+<pre highlight="json">
+{
+  "placeOrder": {
+    "#": { "href": "/stocks/AAPL/orders/", "method": "POST" },
+    "quantity": 0
+  }
+}
+</pre>
+
+The client sets the `quantity` value via `hypermap.input(["placeOrder",
+"quantity"], 10)`, then activates the control via
+`hypermap.use(["placeOrder"])`.
+</div>
+
+After submitting the request, the <a>HyperMap user agent</a> processes the
+response as follows:
+
+1. If the response is a redirect (3xx with a `Location` header), the user
+    agent MUST follow the redirect and <a lt="navigation">navigate</a> to the
+    target URL.
+
+2. If the response is a success (2xx) with a <a>HyperMap resource</a> body,
+    the user agent <a lt="parse a HyperMap resource">parses</a> it and
+    <a lt="navigation">navigates</a> to the new resource.
+
+<div class="note">
+Servers SHOULD respond to form submissions with a redirect (e.g., 303 See
+Other) rather than a direct response. This is the Post/Redirect/Get pattern,
+as used in HTML form submission — the redirect ensures the resulting page is a
+GET-able resource, preventing duplicate submissions when the user navigates
+back.
+</div>
+
+<h3 id="content-negotiation">Content Negotiation</h3>
+
+Clients requesting HyperMap resources SHOULD include
+`application/vnd.hypermap+json` in their `Accept` header.
+
+Servers MUST respond with the `application/vnd.hypermap+json` content type when
+the client requests a HyperMap resource with a matching `Accept` header.
+
+Servers MAY also respond with `text/html` when the client accepts HTML (see
+[[#browser-delivery]]).
+
+
+<h2 id="user-agents">User Agents</h2>
+
+*This section is non-normative where noted.*
+
+A <dfn export>HyperMap user agent</dfn> is any software that fetches, parses,
+and presents <a>HyperMap resources</a>. This includes browser-based clients,
+command-line tools, and programmatic API clients.
+
+A conforming <a>HyperMap user agent</a> MUST:
+
+1. Fetch resources and parse them according to [[#parsing]].
+2. Construct the node tree defined in [[#model]].
+3. Support event dispatch as defined in [[#events]].
+4. Execute scripts as defined in [[#scripts]], if the agent supports scripting.
+
+<h3 id="browser-delivery">Browser-Based User Agents</h3>
+
+When a <a>HyperMap user agent</a> runs within a web browser, the
+<a>HyperMap resource</a> is embedded in an HTML document. The user agent
+script manages the lifecycle of the HyperMap node tree within the browsing
+context of that document.
+
+To deliver a <a>HyperMap resource</a> to a browser, a server responds with an
+HTML document that:
+
+1. Embeds the JSON representation of the resource in the document body.
+2. Includes a user agent script that parses the embedded JSON, constructs
+    the node tree, and calls {{Hypermap/start()}} to begin script execution.
+
+The root {{Hypermap}} node's {{Hypermap/document}} attribute MUST be set to the
+{{Document}} of the enclosing browsing context. This gives scripts access to
+same-origin platform APIs such as `localStorage` and other APIs scoped to
+the document's origin.
+
+<div class="note">
+The HTML document serves as a host for the HyperMap node tree, analogous to
+how an HTML page hosts a DOM tree. The specific mechanism for embedding the
+JSON — such as a <code>&lt;pre&gt;</code> element or an inline script — is
+left to the user agent implementation.
+</div>
+
+<div class="example" id="example-html-delivery">
+*This example is non-normative.*
+
+A minimal HTML document delivering a HyperMap resource:
+
+<pre highlight="html">
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;script type="module" src="/hypermap-shim.js"&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;pre&gt;{"#": {"href": "/todos"}, "todos": []}&lt;/pre&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+</div>
+
+<h3 id="navigation">Navigation</h3>
+
+When <a>control activation</a> produces a new <a>HyperMap resource</a>, the
+<a>HyperMap user agent</a> replaces the current resource with the new one. The
+previous node tree is discarded and a new tree is constructed from the response.
+
+In browser-based user agents, navigation updates the browsing context's URL
+and browsing history using the mechanisms defined in [[!HTML]].
+
+
+<h2 id="security">Security Considerations</h2>
+
+The security goal for HyperMap is that scripts operate with minimal authority
+by default. This section describes the desired security properties and the
+constraints on achieving them.
+
+<h3 id="credential-model">Credential Model</h3>
+
+This specification distinguishes between two classes of network request:
+
+: <dfn>User agent requests</dfn>
+:: Requests made by the <a>HyperMap user agent</a> itself — during
+    <a>control activation</a>, <a>navigation</a>, and initial resource
+    loading. These represent the user's intent and SHOULD include ambient
+    credentials (cookies, session tokens) as normal, analogous to a browser
+    navigating to a URL when the user clicks a link.
+
+: <dfn>Script-initiated requests</dfn>
+:: Requests made by scripts via `fetch()`, {{WebSocket}}, {{EventSource}},
+    or similar APIs. These run autonomously and SHOULD NOT include ambient
+    credentials. Specifically, script-initiated requests SHOULD omit cookies
+    (`credentials: "omit"`), the `Referer` header
+    (`referrerPolicy: "no-referrer"`), and any `Authorization` headers from
+    the browsing context.
+
+<div class="note">
+Enforcing this distinction requires script execution isolation — the user
+agent must be able to provide scripts with a restricted environment where
+network APIs do not carry ambient credentials. In a browser-based user agent
+running as a JavaScript shim, scripts share the same global scope and
+`fetch()` as the user agent itself, making this distinction unenforceable
+without additional isolation mechanisms such as Secure ECMAScript (SES)
+compartments. Implementations that achieve script isolation MUST enforce
+credential stripping; implementations without isolation SHOULD document this
+limitation.
+</div>
+
+<h3 id="script-scope-isolation">Script Scope Isolation</h3>
+
+As described in [[#script-environment]], each script's `hypermap` global
+references only the {{MapNode}} that declared it. When script isolation is
+enforced, implementations SHOULD additionally ensure:
+
+- A script cannot traverse above its declaring node via `parentNode` to
+    access other parts of the tree.
+
+- A script does not have direct access to the global `window` or `document`
+    objects. Access to the host {{Document}} is available through the root
+    {{Hypermap}} node's {{Hypermap/document}} attribute when explicitly
+    needed, but scripts scoped to subtrees should not implicitly receive it.
+
+<div class="note">
+The combination of scoped globals and credential stripping limits the blast
+radius of a compromised or malicious script. A script attached to a leaf
+node can only read and modify its own subtree, and cannot make authenticated
+requests on behalf of the user.
+</div>
+
+<h3 id="open-security-questions">Open Questions</h3>
+
+*This section is non-normative.*
+
+The following security topics are recognized but not yet addressed by this
+specification:
+
+- **Resource transclusion**: A future `rel` attribute (e.g., `rel="embed"`)
+    may allow a node to transclude another <a>HyperMap resource</a> inline.
+    This raises questions about credential scope — should the transcluded
+    resource inherit the parent's credentials, use its own origin's
+    credentials, or have none?
+
+- **Cross-origin scripts**: The current specification does not define
+    restrictions on loading scripts from different origins than the resource
+    that declared them.
