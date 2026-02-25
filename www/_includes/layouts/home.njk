@@ -1,0 +1,16 @@
+---
+layout: ./base.njk
+---
+
+<header class="hero">
+	<div>
+		<h1>{{ heading }}</h1>
+		<p>{{ subheading }}</p>
+	</div>
+</header>
+
+<main class="page">
+	<article class="home-content">
+		{{ content | safe }}
+	</article>
+</main>

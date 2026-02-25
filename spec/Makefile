@@ -1,4 +1,4 @@
-BIKESHED = uv tool run bikeshed
+BIKESHED = $(shell command -v uv >/dev/null 2>&1 && echo "uv tool run bikeshed" || echo "pipx run bikeshed")
 
 all: index.html
 
