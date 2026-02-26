@@ -1,6 +1,7 @@
-# mech
+# Mech (POSIX)
 
-A command-line client for browsing and interacting with HyperMap resources.
+A command-line client for browsing and interacting with
+[HyperMap](https://www.hypermap.dev) resources.
 
 mech provides a tabbed browsing interface over a client-daemon architecture,
 communicating with the **mechd** daemon over a Unix socket.

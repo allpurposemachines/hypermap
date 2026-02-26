@@ -1,17 +1,25 @@
 {
 	"name": "@allpurposemachines/hypermap-shim",
 	"version": "0.6.0",
-	"description": "A shim for browsers to be able to parse and run HyperMap APIs",
+	"description": "Browser parser and runtime for HyperMap APIs",
 	"type": "module",
 	"exports": {
 		".": "./src/index.js"
 	},
 	"scripts": {},
-	"author": "daniel@allpurposemachines.com",
+	"keywords": [
+		"hypermap",
+		"hypermedia",
+		"rest",
+		"api",
+		"runtime"
+	],
+	"author": "daniel@auxilit.com",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/allpurposemachines/hypermap.git"
+		"url": "git+https://github.com/allpurposemachines/hypermap.git",
+		"directory": "hypermap_shim"
 	},
-	"homepage": "https://www.allpurposemachines.com"
+	"homepage": "https://www.hypermap.dev"
 }

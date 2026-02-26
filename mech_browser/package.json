@@ -1,7 +1,7 @@
 {
 	"name": "@allpurposemachines/mech",
 	"version": "0.9.0",
-	"description": "A client for HyperMap services. Browser only for now.",
+	"description": "A universal browser client for HyperMap services",
 	"type": "module",
 	"exports": {
 		".": "./index.js"
@@ -10,13 +10,16 @@
 	"keywords": [
 		"hypermap",
 		"hypermedia",
-		"rest"
+		"rest",
+		"api",
+		"client"
 	],
-	"author": "daniel@allpurposemachines.com",
+	"author": "daniel@auxilit.com",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/allpurposemachines/hypermap.git"
+		"url": "git+https://github.com/allpurposemachines/hypermap.git",
+		"directory": "mech_browser"
 	},
-	"homepage": "https://www.allpurposemachines.com"
+	"homepage": "https://www.hypermap.dev"
 }
