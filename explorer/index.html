@@ -191,7 +191,7 @@
 			right: 0;
 			top: 0;
 			height: 100%;
-			width: 400px;
+			width: min(400px, 100vw);
 			background-color: #1a1a1a;
 			color: #f0f0f0;
 			box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
@@ -335,6 +335,85 @@
 			letter-spacing: -0.022em;
 		}
 
+		/* Mobile sidebar drawer */
+		.sidebar-open,
+		.sidebar-close {
+			display: none;
+		}
+
+		.sidebar-overlay {
+			display: none;
+		}
+
+		@media (max-width: 767px) {
+			.sidebar {
+				position: fixed;
+				top: 0;
+				left: 0;
+				height: 100%;
+				z-index: 40;
+				transform: translateX(-100%);
+				transition: transform 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
+				width: 280px;
+				min-width: unset;
+				max-width: unset;
+				box-shadow: none;
+			}
+
+			#sidebarToggle:checked ~ .sidebar {
+				transform: translateX(0);
+				box-shadow: 2px 0 8px rgb(0 0 0 / 0.15);
+			}
+
+			#sidebarToggle:checked ~ .sidebar-overlay {
+				display: block;
+			}
+
+			.sidebar-resizer {
+				display: none;
+			}
+
+			.sidebar-open {
+				display: block;
+				position: absolute;
+				top: 16px;
+				left: 16px;
+				z-index: 20;
+				background: #f8f9fa;
+				border: 1px solid #e5e5e7;
+				font-size: 20px;
+				padding: 4px 10px;
+				cursor: pointer;
+			}
+
+			.sidebar-close {
+				display: inline-block;
+				background: none;
+				border: none;
+				font-size: 22px;
+				cursor: pointer;
+				padding: 0;
+				color: #666;
+			}
+
+			.sidebar-close:hover {
+				color: #000;
+			}
+
+			.sidebar-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+			}
+
+			.sidebar-overlay {
+				position: fixed;
+				inset: 0;
+				z-index: 30;
+				cursor: default;
+			}
+		}
+
 		@media (prefers-color-scheme: dark) {
 			body {
 				background-color: #1c1c1e;
@@ -401,17 +480,34 @@
 			.json-view {
 				background-color: #000000;
 			}
+
+			.sidebar-open {
+				background-color: #2c2c2e;
+				border-color: #38383a;
+				color: #f2f2f7;
+			}
+
+			.sidebar-close {
+				color: #8e8e93;
+			}
+
+			.sidebar-close:hover {
+				color: #f2f2f7;
+			}
 		}
 	</style>
 </head>
 
 <body>
 	<div class="main-container">
+		<input type="checkbox" id="sidebarToggle" hidden>
+
 		<!-- Left Sidebar - Tab List -->
 		<div class="sidebar">
 			<div class="sidebar-resizer"></div>
 			<div class="sidebar-header">
 				<h1>HyperMap Explorer</h1>
+				<label for="sidebarToggle" class="sidebar-close" aria-label="Close sidebar">&times;</label>
 			</div>
 
 			<!-- URL Input -->
@@ -431,8 +527,13 @@
 			</div>
 		</div>
 
+		<!-- Overlay for mobile drawer dismiss -->
+		<label for="sidebarToggle" class="sidebar-overlay"></label>
+
 		<!-- Main Content Area -->
 		<div class="content-area">
+			<!-- Mobile sidebar toggle -->
+			<label for="sidebarToggle" class="sidebar-open" aria-label="Open sidebar">&#9776;</label>
 			<!-- Debug Toggle Button -->
 			<button id="debugToggle" class="debug-toggle" title="Toggle Debug View">
 				&lt;/&gt;
@@ -605,6 +706,8 @@
 			if (debugPanelOpen) {
 				updateDebugView();
 			}
+			// Close mobile drawer
+			document.getElementById('sidebarToggle').checked = false;
 		}
 
 		function closeTab(index, e) {
