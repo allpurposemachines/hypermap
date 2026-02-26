@@ -1,22 +1,21 @@
 <nav class="sidebar">
-	<details class="sidebar-collapse">
-		<summary class="sidebar-toggle">Navigation</summary>
-		<div class="sidebar-content">
-			<h2>Overview</h2>
-			<ul>
-				<li>
-					<a href="/docs/"{% if url == "/docs/" %} class="active"{% endif %}>About HyperMap and Mech</a>
-				</li>
-				<li>
-					<a href="/docs/why/"{% if url == "/docs/why/" %} class="active"{% endif %}>Why HyperMap</a>
-				</li>
-			</ul>
-			<h2>Guides</h2>
-			<ul>
-				<li>
-					<a href="/docs/converting-an-api/"{% if url == "/docs/converting-an-api/" %} class="active"{% endif %}>Converting an API</a>
-				</li>
-			</ul>
-		</div>
-	</details>
+	<input type="checkbox" id="docs-nav-toggle" hidden>
+	<label for="docs-nav-toggle" class="sidebar-toggle">Navigation</label>
+	<div class="sidebar-content">
+		<h2>Overview</h2>
+		<ul>
+			<li>
+				<a href="/docs/"{% if url == "/docs/" %} class="active"{% endif %}>About HyperMap and Mech</a>
+			</li>
+			<li>
+				<a href="/docs/why/"{% if url == "/docs/why/" %} class="active"{% endif %}>Why HyperMap</a>
+			</li>
+		</ul>
+		<h2>Guides</h2>
+		<ul>
+			<li>
+				<a href="/docs/converting-an-api/"{% if url == "/docs/converting-an-api/" %} class="active"{% endif %}>Converting an API</a>
+			</li>
+		</ul>
+	</div>
 </nav>
