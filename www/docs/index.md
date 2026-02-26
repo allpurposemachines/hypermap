@@ -29,7 +29,7 @@ and environments.
 There are two current implementations of Mech depending on the environment:
 
 * a browser client and JavaScript interface which uses iFrames for isolation
-* a Posix daemon and CLI built on [Servo](https://servo.org)
+* a POSIX daemon and CLI built on [Servo](https://servo.org)
 
 ## Talks
 
