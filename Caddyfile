@@ -1,6 +1,6 @@
 localhost:4000 {
 	file_server
-	root hypermap_shim
+	root shim
 	tls internal
 	header Access-Control-Allow-Origin *
 }

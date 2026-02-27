@@ -3,11 +3,11 @@
 ## Build & Run Commands
 - **Example server**: `MODE=DEV deno run --allow-net --allow-read --allow-env --watch=. example_server/app.ts`
 - **Local dev server**: `caddy run` from repo root (serves shim on :4000, proxies example server on :4001, both with TLS)
-- Tests are browser-based in `hypermap_shim/tests/`
+- Tests are browser-based in `shim/tests/`
 
 ## Architecture
 - **mech_browser/**: Universal HyperMap client library (browser JS, uses iframes + postMessage)
-- **hypermap_shim/**: Browser shim that parses HyperMap JSON and runs embedded scripts
+- **shim/**: Browser shim that parses HyperMap JSON and runs embedded scripts
 - **example_server/**: Demo Deno/Oak server showcasing HyperMap features
 - **explorer/**: Simple HTML explorer UI
 

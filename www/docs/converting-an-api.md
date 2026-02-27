@@ -75,7 +75,7 @@ function template(body) {
     <html>
       <head>
         <script type="module"
-          src="https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.6.0/+esm">
+          src="https://cdn.jsdelivr.net/npm/@hypermap/shim@0.7.0/+esm">
         </script>
       </head>
       <body>

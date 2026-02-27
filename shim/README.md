@@ -14,13 +14,13 @@ For full documentation, see [hypermap.dev/docs](https://www.hypermap.dev/docs/).
 ## Install
 
 ```sh
-npm install @allpurposemachines/hypermap-shim
+npm install @hypermap/shim
 ```
 
 Or load from a CDN:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.6.0/+esm"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@hypermap/shim@0.7.0/+esm"></script>
 ```
 
 ## Usage
@@ -32,7 +32,7 @@ tag (which is the default rendering for JSON content types in Chrome and Safari)
 <!DOCTYPE html>
 <html>
   <head>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@allpurposemachines/hypermap-shim@0.6.0/+esm"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@hypermap/shim@0.7.0/+esm"></script>
   </head>
   <body>
     <pre>{"#": {"scripts": ["/my-script.js"]}, "hello": "world"}</pre>

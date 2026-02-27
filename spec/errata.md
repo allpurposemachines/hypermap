@@ -1,6 +1,6 @@
 # Spec Errata — Implementation Gaps
 
-Where the current implementation (`hypermap_shim/`) diverges from the spec.
+Where the current implementation (`shim/`) diverges from the spec.
 
 ## Scripts
 

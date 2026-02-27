@@ -16,7 +16,7 @@ MODE=DEV deno run --allow-net --allow-read --allow-env --watch=. example_server/
 The server starts on port 8000.
 
 In dev mode the shim is loaded from `localhost:4000`, so you will also need to
-serve the [hypermap_shim](../hypermap_shim/) directory locally — see its README.
+serve the [shim](../shim/) directory locally — see its README.
 
 ## License
 
