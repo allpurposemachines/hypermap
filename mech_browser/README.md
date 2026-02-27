@@ -13,13 +13,13 @@ For full documentation, see [hypermap.dev/docs](https://www.hypermap.dev/docs/).
 ## Install
 
 ```sh
-npm install @allpurposemachines/mech
+npm install @hypermap/mech
 ```
 
 ## Usage
 
 ```js
-import '@allpurposemachines/mech';
+import '@hypermap/mech';
 
 const tab = Mech.open('https://example.com/api/');
 

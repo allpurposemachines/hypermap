@@ -15,9 +15,9 @@ runs on the client in OS-level process isolation.
 <strong>The Spec</strong>
 <span>Format definition. OWFa 1.0.</span>
 </a>
-<a href="https://npmx.dev/package/@allpurposemachines/hypermap-shim" class="artifact">
+<a href="https://npmx.dev/package/@hypermap/shim" class="artifact">
 <strong>HyperMap Shim</strong>
-<span>Browser parser &amp; runtime. v0.6.0</span>
+<span>Browser parser &amp; runtime. v0.7.0</span>
 </a>
 </div>
 
@@ -26,9 +26,9 @@ as a POSIX daemon. There's no separate spec to write and no client to generate
 &mdash; each resource describes itself, and Mech understands them all.
 
 <div class="artifact-callouts artifact-callouts--pair">
-<a href="https://npmx.dev/package/@allpurposemachines/mech" class="artifact">
+<a href="https://npmx.dev/package/@hypermap/mech" class="artifact">
 <strong>Mech (Browser)</strong>
-<span>Browser client. v0.9.0</span>
+<span>Browser client. v0.10.0</span>
 </a>
 <a href="https://github.com/allpurposemachines/hypermap/tree/main/mech_posix" class="artifact">
 <strong>Mech (POSIX)</strong>

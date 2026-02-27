@@ -1,6 +1,6 @@
 {
-	"name": "@allpurposemachines/mech",
-	"version": "0.9.0",
+	"name": "@hypermap/mech",
+	"version": "0.10.0",
 	"description": "A universal browser client for HyperMap services",
 	"type": "module",
 	"exports": {

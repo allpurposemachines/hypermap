@@ -16,8 +16,8 @@ For documentation and getting started, visit
 
 | Directory | Description | Stack |
 | --------- | ----------- | ----- |
-| [hypermap_shim](hypermap_shim/) | Browser parser & runtime for HyperMap | [npmx](https://npmx.dev/package/@allpurposemachines/hypermap-shim) |
-| [mech_browser](mech_browser/) | Browser client library for HyperMap services | [npmx](https://npmx.dev/package/@allpurposemachines/mech) |
+| [shim](shim/) | Browser parser & runtime for HyperMap | [npmx](https://npmx.dev/package/@hypermap/shim) |
+| [mech_browser](mech_browser/) | Browser client library for HyperMap services | [npmx](https://npmx.dev/package/@hypermap/mech) |
 | [mech_posix](mech_posix/) | CLI client & daemon using Servo | Rust |
 | [example_server](example_server/) | Demo server showcasing HyperMap features | Deno |
 | [explorer](explorer/) | Interactive HyperMap explorer UI | HTML |
