@@ -69,15 +69,29 @@ router
 				scripts: ['/stocks.js']
 			},
 			market: {
-				ibm: {
+				acrn: {
 					ticker: 'ACRN',
+					name: 'Acorn Computers',
 					price: (200.0 + Math.random()).toFixed(2),
-					submitOrder: submitOrder('ACRN')
+					change: '+1.32%',
+					buy: submitOrder('ACRN'),
+					sell: submitOrder('ACRN')
 				},
-				msft: {
+				sclr: {
 					ticker: 'SCLR',
+					name: 'Sinclair Research',
 					price: (100.0 + Math.random()).toFixed(2),
-					submitOrder: submitOrder('SCLR')
+					change: '-0.75%',
+					buy: submitOrder('SCLR'),
+					sell: submitOrder('SCLR')
+				},
+				amsd: {
+					ticker: 'AMSD',
+					name: 'Amstrad plc',
+					price: (48.0 + Math.random()).toFixed(2),
+					change: '+3.10%',
+					buy: submitOrder('AMSD'),
+					sell: submitOrder('AMSD')
 				}
 			}
 		};
