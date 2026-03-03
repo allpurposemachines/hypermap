@@ -53,27 +53,3 @@ A client — human or machine — can follow `company` to learn about Apple, fol
 `filings` to reach SEC data on a completely different server, or let the
 price-stream script push real-time updates. No docs required. No SDK. Just
 follow the links, run the code.
-
-## The landscape today
-
-AI agents need to discover and use APIs without hand-holding. Here's what they
-get today:
-
-- **MCP** gives agents a flat list of tools. It works for simple cases, but
-  tools don't link to each other, there's no code-on-demand, and each API needs
-  a separate wrapper server with its own auth and deployment. As the number of
-  tools grows, the tool schemas themselves become a scaling problem — tens of
-  thousands of tokens in the context window before any reasoning happens.
-- **OpenAPI** describes endpoints with schemas, but statically. No traversal, no
-  executable behaviour, no links between services.
-- **GraphQL** offers a query language over a single endpoint, but still no links
-  between services and no client-side logic.
-- **Raw REST** works if you've read the docs. Agents haven't.
-
-Agents need a web of APIs they can explore. HyperMap gives them one.
-
-But this isn't only about agents. The same properties that let an AI explore —
-links, self-description, executable behaviour — make APIs better for developers,
-scripts, and integrations. An agent can explore a HyperMap API dynamically to
-understand it, then write a lightweight script for ongoing work. The format
-bridges discovery and automation.
