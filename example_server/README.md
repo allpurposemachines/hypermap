@@ -10,7 +10,7 @@ and order submission.
 From the repository root:
 
 ```sh
-MODE=DEV deno run --allow-net --allow-read --allow-env --watch=. example_server/app.ts
+MODE=DEV deno run --allow-net --allow-read --allow-env --watch=example_server/ example_server/app.ts
 ```
 
 The server starts on port 8000.

@@ -39,23 +39,35 @@ globalThis.addEventListener('mutation', (_event) => {
 	parent.window.postMessage(JSON.stringify(message), "*");
 })
 
+function controlData(control) {
+	const data = JSON.parse(JSON.stringify(control));
+	delete data['#'];
+	return data;
+}
+
 globalThis.addEventListener('use', (event) => {
 	if (event.defaultPrevented) {
 		return;
 	}
 
-	const attrs = event.detail.target.attributes;
+	const control = event.detail.target;
+	const attrs = control.attributes;
 	if (attrs.href) {
 		if (attrs.method) {
 			fetch(attrs.href,
 				{
 					method: attrs.method,
-					headers: {'Content-Type': 'application/json'}
+					headers: {'Content-Type': 'application/json'},
+					body: JSON.stringify(controlData(control))
 				}).then(response => {
 					HypermapHelpers.navTo(response.url);
 				});
 		} else {
-			HypermapHelpers.navTo(attrs.href);
+			const url = new URL(attrs.href, window.location.href);
+			for (const [key, value] of Object.entries(controlData(control))) {
+				url.searchParams.set(key, value);
+			}
+			HypermapHelpers.navTo(url.toString());
 		}
 	}
 });

@@ -24,14 +24,6 @@ Where the current implementation (`shim/`) diverges from the spec.
 
 ## Fetching and Navigation
 
-- **GET form serialization**: The spec says GET controls serialize child data
-  as URL query parameters. Not implemented — the shim doesn't send form data
-  on GET.
-
-- **POST/PUT/etc body**: The spec says non-GET controls serialize child data as
-  a JSON request body. The implementation sends `Content-Type: application/json`
-  but does not include the body.
-
 - **Form response handling**: The spec describes handling both redirect (3xx)
   and direct (2xx) responses. The implementation only handles redirects
   (navigates to `response.url`).

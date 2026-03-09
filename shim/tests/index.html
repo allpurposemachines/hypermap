@@ -316,20 +316,30 @@
 		});
 
 		describe('using controls', async () => {
+			let sandbox;
+
+			beforeEach(() => {
+				sandbox = sinon.createSandbox();
+			});
+
+			afterEach(() => {
+				sandbox.restore();
+				delete window.hypermap;
+			});
+
 			it('assigns a new location', async () => {
-				const stub = sinon.stub(window.HypermapHelpers, 'navTo');
+				const stub = sandbox.stub(window.HypermapHelpers, 'navTo');
 				const map = Hypermap.fromJSON('{"#": {"href": "/"}}');
 				await window.setHypermap(map);
 
 				window.hypermap.use([]);
 
 				assert(stub.calledOnce);
-				stub.restore();
 			});
 
 			it('makes a POST request before assigning location', async () => {
-				const stubNav = sinon.stub(window.HypermapHelpers, 'navTo');
-				const stubFetch = sinon.stub(window, 'fetch');
+				const stubNav = sandbox.stub(window.HypermapHelpers, 'navTo');
+				const stubFetch = sandbox.stub(window, 'fetch');
 				stubFetch.resolves({
 					status: 302,
 					url: '/redirect/',
@@ -351,9 +361,52 @@
 				assert.equal(call.args[1].headers['Content-Type'], 'application/json');
 				assert(stubNav.calledOnce);
 				assert(stubNav.calledWith('/redirect/'));
+			});
 
-				stubFetch.restore();
-				stubNav.restore();
+			it('sends child data as JSON body for POST', async () => {
+				sandbox.stub(window.HypermapHelpers, 'navTo');
+				const stubFetch = sandbox.stub(window, 'fetch');
+				stubFetch.resolves({ status: 302, url: '/redirect/', ok: false });
+
+				const map = Hypermap.fromJSON('{"#": {"href": "/post/", "method": "POST"}, "title": "hello"}');
+				await window.setHypermap(map);
+
+				window.hypermap.use([]);
+				await new Promise(resolve => setTimeout(resolve, 0));
+
+				assert(stubFetch.calledOnce);
+				const call = stubFetch.firstCall;
+				assert.equal(call.args[1].body, '{"title":"hello"}');
+			});
+
+			it('sends updated input data in POST body', async () => {
+				sandbox.stub(window.HypermapHelpers, 'navTo');
+				const stubFetch = sandbox.stub(window, 'fetch');
+				stubFetch.resolves({ status: 302, url: '/redirect/', ok: false });
+
+				const map = Hypermap.fromJSON('{"#": {"href": "/post/", "method": "POST"}, "quantity": 0}');
+				await window.setHypermap(map);
+
+				window.hypermap.input(['quantity'], 10);
+				window.hypermap.use([]);
+				await new Promise(resolve => setTimeout(resolve, 0));
+
+				assert(stubFetch.calledOnce);
+				const call = stubFetch.firstCall;
+				assert.equal(call.args[1].body, '{"quantity":10}');
+			});
+
+			it('appends child data as query params for GET', async () => {
+				const stub = sandbox.stub(window.HypermapHelpers, 'navTo');
+				const map = Hypermap.fromJSON('{"#": {"href": "/search"}, "query": "test"}');
+				await window.setHypermap(map);
+
+				window.hypermap.use([]);
+
+				assert(stub.calledOnce);
+				const called = new URL(stub.firstCall.args[0]);
+				assert.equal(called.pathname, '/search');
+				assert.equal(called.searchParams.get('query'), 'test');
 			});
 		});
 

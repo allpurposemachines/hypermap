@@ -109,10 +109,13 @@ router
 		);
 	})
 	.get('/stocks/:ticker/currentOrder/', (ctx) => {
+		const quantity = ctx.request.url.searchParams.get('quantity');
 		const body = {
 			'#': {
 				scripts: ['/order.js']
 			},
+			ticker: ctx.params.ticker,
+			quantity: Number(quantity),
 			status: 'submitted'
 		};
 
