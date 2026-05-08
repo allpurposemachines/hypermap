@@ -1,14 +1,15 @@
 // mech - CLI client for interacting with HyperMap resources
 //
 // This is the lightweight client binary. It communicates with the mechd daemon
-// over a Unix socket to manage tabs and navigate HyperMap resources.
+// over a Unix socket using the varlink protocol (JSON + null-byte framing).
 
 use clap::{Parser, Subcommand};
-use std::io::{IsTerminal, Read, Write};
+use std::collections::HashMap;
+use std::io::{IsTerminal, Read};
 use std::os::unix::net::UnixStream;
 use std::process::Command;
 
-use mech_cli::{cleanup, socket_path};
+use mech_cli::{cleanup, socket_path, write_message, DaemonCommand, DaemonReply};
 
 #[cfg(test)]
 use mech_cli::format_hypermap_styled;
@@ -97,20 +98,12 @@ fn main() {
         Commands::Start { foreground } => start_daemon(foreground),
         Commands::Stop => stop_daemon(),
         Commands::Open { url, name } => {
-            let name_part = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
-            send_command(&format!("open {}{}", url, name_part));
+            send_command(&DaemonCommand::Open { url, name });
         }
         Commands::Show { target } => {
             let (tab, path) = parse_target(&target);
-            let color_flag = if std::io::stdout().is_terminal() {
-                " --color"
-            } else {
-                ""
-            };
-            match path {
-                Some(p) => send_command(&format!("show {} {}{}", tab, p, color_flag)),
-                None => send_command(&format!("show {}{}", tab, color_flag)),
-            }
+            let color = std::io::stdout().is_terminal();
+            send_command(&DaemonCommand::Show { tab, path, color });
         }
         Commands::Set { target, value } => {
             let (tab, path) = parse_target(&target);
@@ -118,7 +111,7 @@ fn main() {
                 eprintln!("error: set requires a path (e.g., \"{}:path/to/field\")", tab);
                 std::process::exit(1);
             };
-            send_command(&format!("set {} {} {}", tab, path, value));
+            send_command(&DaemonCommand::Set { tab, path, value });
         }
         Commands::Use { target, data } => {
             let (tab, path) = parse_target(&target);
@@ -126,21 +119,26 @@ fn main() {
                 eprintln!("error: use requires a path (e.g., \"{}:path/to/control\")", tab);
                 std::process::exit(1);
             };
-            let data_str = data.join(" ");
-            send_command(&format!("use {} {} {}", tab, path, data_str));
+            let data: HashMap<String, String> = data
+                .iter()
+                .filter_map(|s| {
+                    let mut split = s.splitn(2, '=');
+                    Some((split.next()?.to_string(), split.next()?.to_string()))
+                })
+                .collect();
+            send_command(&DaemonCommand::Use { tab, path, data });
         }
         Commands::Fork { tab, name } => {
-            let name_part = name.map(|n| format!(" --name {}", n)).unwrap_or_default();
-            send_command(&format!("fork {}{}", tab, name_part));
+            send_command(&DaemonCommand::Fork { tab, name });
         }
         Commands::Close { tab } => {
-            send_command(&format!("close {}", tab));
+            send_command(&DaemonCommand::Close { tab });
         }
         Commands::Name { tab, name } => {
-            send_command(&format!("name {} {}", tab, name));
+            send_command(&DaemonCommand::Name { tab, name });
         }
         Commands::Tabs => {
-            send_command("tabs");
+            send_command(&DaemonCommand::Tabs);
         }
     }
 }
@@ -157,19 +155,35 @@ fn parse_target(target: &str) -> (String, Option<String>) {
     }
 }
 
-fn send_command(cmd: &str) {
+fn send_command(cmd: &DaemonCommand) {
     match UnixStream::connect(socket_path()) {
         Ok(mut stream) => {
-            if let Err(e) = stream.write_all(cmd.as_bytes()) {
+            let json = serde_json::to_vec(cmd).expect("Failed to serialize command");
+            if let Err(e) = write_message(&mut stream, &json) {
                 eprintln!("Failed to send command: {}", e);
                 return;
             }
-            // Shutdown write side to signal end of command
             let _ = stream.shutdown(std::net::Shutdown::Write);
-            // Read response
-            let mut response = String::new();
-            if stream.read_to_string(&mut response).is_ok() && !response.is_empty() {
-                print!("{}", response);
+            let mut buf = Vec::new();
+            if stream.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
+                if buf.last() == Some(&0) {
+                    buf.pop();
+                }
+                match serde_json::from_slice::<DaemonReply>(&buf) {
+                    Ok(DaemonReply::Ok { parameters }) => {
+                        if !parameters.message.is_empty() {
+                            print!("{}", parameters.message);
+                        }
+                    }
+                    Ok(DaemonReply::Err(err)) => {
+                        eprintln!("{}", err.user_message());
+                        std::process::exit(1);
+                    }
+                    Err(_) => {
+                        eprintln!("Invalid response from daemon. Is mechd up to date?");
+                        std::process::exit(1);
+                    }
+                }
             }
         }
         Err(_) => {
@@ -187,7 +201,7 @@ fn start_daemon(foreground: bool) {
 
     println!("Starting mech daemon...");
 
-    // Spawn mechd
+    // Spawn mechd from PATH
     let mut cmd = Command::new("mechd");
     if foreground {
         cmd.arg("--foreground");
@@ -224,15 +238,17 @@ fn start_daemon(foreground: bool) {
 }
 
 fn stop_daemon() {
-    send_command("shutdown");
+    if UnixStream::connect(socket_path()).is_err() {
+        // No daemon listening — just clean up stale files
+        cleanup();
+        eprintln!("Daemon is not running");
+        return;
+    }
+    send_command(&DaemonCommand::Shutdown);
     std::thread::sleep(std::time::Duration::from_millis(500));
     cleanup();
     println!("Daemon stopped");
 }
-
-// Re-export for tests that need these
-#[cfg(test)]
-pub use mech_cli::{parse_command, DaemonCommand};
 
 #[cfg(test)]
 mod tests {

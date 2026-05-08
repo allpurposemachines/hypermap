@@ -1,0 +1,39 @@
+# Interface for the mech daemon (mechd).
+#
+# The mech CLI communicates with mechd over a Unix socket using the varlink
+# protocol: JSON messages framed with null-byte delimiters.
+
+interface com.hypermap.mech
+
+# Open a URL in a new tab.
+method Open(url: string, name: ?string) -> (message: string)
+
+# Show tab contents, optionally at a specific path.
+method Show(tab: string, path: ?string, color: bool) -> (message: string)
+
+# Set a value at a path without triggering the control.
+method Set(tab: string, path: string, value: string) -> ()
+
+# Activate a control at a path, optionally with form data.
+method Use(tab: string, path: string, data: [string]string) -> ()
+
+# Fork (copy) a tab.
+method Fork(tab: string, name: ?string) -> (message: string)
+
+# Close a tab.
+method Close(tab: string) -> (message: string)
+
+# Rename a tab.
+method Name(tab: string, name: string) -> (message: string)
+
+# List all open tabs.
+method Tabs() -> (message: string)
+
+# Shut down the daemon.
+method Shutdown() -> ()
+
+error TabNotFound(tab: string)
+error PathNotFound(tab: string, path: string)
+error NameInUse(name: string)
+error InvalidUrl(url: string, reason: string)
+error PageError(message: string)

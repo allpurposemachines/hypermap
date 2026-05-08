@@ -1,10 +1,15 @@
 // Shared types and utilities for mech CLI
 //
 // This module contains code shared between the mech client and mechd daemon.
+// Communication uses the varlink protocol: JSON messages over a Unix socket,
+// framed with null byte (\0) delimiters.
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fmt::Write;
 use std::fs;
+use std::io;
 
 pub fn socket_path() -> String {
     std::env::var("MECH_SOCKET_PATH").unwrap_or_else(|_| "/tmp/mech.sock".to_string())
@@ -19,8 +24,50 @@ pub fn cleanup() {
     let _ = fs::remove_file(pid_path());
 }
 
-/// Daemon protocol commands (sent over socket)
-#[derive(Debug, Clone)]
+// -- Varlink framing ----------------------------------------------------------
+
+/// Write a varlink message: JSON bytes followed by a null byte.
+pub fn write_message(writer: &mut impl io::Write, msg: &[u8]) -> io::Result<()> {
+    writer.write_all(msg)?;
+    writer.write_all(&[0])?;
+    writer.flush()
+}
+
+/// Read a varlink message: consume bytes until a null byte or EOF.
+pub fn read_message(reader: &mut impl io::Read) -> io::Result<Vec<u8>> {
+    let mut buf = Vec::new();
+    let mut byte = [0u8; 1];
+    loop {
+        match reader.read(&mut byte) {
+            Ok(0) => {
+                if buf.is_empty() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "connection closed",
+                    ));
+                }
+                break;
+            }
+            Ok(_) => {
+                if byte[0] == 0 {
+                    break;
+                }
+                buf.push(byte[0]);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(buf)
+}
+
+// -- Protocol types -----------------------------------------------------------
+
+/// Daemon protocol commands (varlink methods).
+///
+/// Serializes as `{"method": "Open", "parameters": {"url": "..."}}` which
+/// matches the varlink wire format.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "method", content = "parameters")]
 pub enum DaemonCommand {
     Open {
         url: String,
@@ -39,7 +86,7 @@ pub enum DaemonCommand {
     Use {
         tab: String,
         path: String,
-        data: Vec<(String, String)>,
+        data: HashMap<String, String>,
     },
     Fork {
         tab: String,
@@ -56,98 +103,75 @@ pub enum DaemonCommand {
     Shutdown,
 }
 
-pub fn parse_command(input: &str) -> Option<DaemonCommand> {
-    let parts: Vec<&str> = input.split_whitespace().collect();
-    let cmd = *parts.first()?;
+/// Daemon error variants (varlink errors).
+///
+/// Serializes as `{"error": "TabNotFound", "parameters": {"tab": "1"}}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "error", content = "parameters")]
+pub enum DaemonError {
+    TabNotFound { tab: String },
+    PathNotFound { tab: String, path: String },
+    NameInUse { name: String },
+    InvalidUrl { url: String, reason: String },
+    PageError { message: String },
+}
 
-    match cmd {
-        "open" => {
-            // open <url> [--name <name>]
-            let mut url = String::new();
-            let mut name = None;
-            let mut i = 1;
-            while i < parts.len() {
-                if parts[i] == "--name" && i + 1 < parts.len() {
-                    name = Some(parts[i + 1].to_string());
-                    i += 2;
-                } else {
-                    if !url.is_empty() {
-                        url.push(' ');
-                    }
-                    url.push_str(parts[i]);
-                    i += 1;
-                }
+impl DaemonError {
+    /// Human-readable rendering for the CLI to print to stderr.
+    pub fn user_message(&self) -> String {
+        match self {
+            DaemonError::TabNotFound { tab } => format!("Tab '{}' not found", tab),
+            DaemonError::PathNotFound { tab, path } => {
+                format!("Path '{}' not found in tab '{}'", path, tab)
             }
-            Some(DaemonCommand::Open { url, name })
-        }
-        "show" => {
-            // show <tab> [path] [--color]
-            let tab = parts.get(1)?.to_string();
-            let color = parts.contains(&"--color");
-            let path_parts: Vec<&str> = parts[2..]
-                .iter()
-                .filter(|&&p| p != "--color")
-                .copied()
-                .collect();
-            let path = if path_parts.is_empty() {
-                None
-            } else {
-                Some(path_parts.join("/"))
-            };
-            Some(DaemonCommand::Show { tab, path, color })
-        }
-        "set" => {
-            // set <tab> <path> <value>
-            let tab = parts.get(1)?.to_string();
-            let path = parts.get(2)?.to_string();
-            let value = parts.get(3)?.to_string();
-            Some(DaemonCommand::Set { tab, path, value })
-        }
-        "use" => {
-            // use <tab> <path> [key=value ...]
-            let tab = parts.get(1)?.to_string();
-            let path = parts.get(2)?.to_string();
-            let data = parts[3..]
-                .iter()
-                .filter_map(|s| {
-                    let mut split = s.splitn(2, '=');
-                    Some((split.next()?.to_string(), split.next()?.to_string()))
-                })
-                .collect();
-            Some(DaemonCommand::Use { tab, path, data })
-        }
-        "fork" => {
-            // fork <tab> [--name <name>]
-            let tab = parts.get(1)?.to_string();
-            let mut name = None;
-            let mut i = 2;
-            while i < parts.len() {
-                if parts[i] == "--name" && i + 1 < parts.len() {
-                    name = Some(parts[i + 1].to_string());
-                    i += 2;
-                } else {
-                    i += 1;
-                }
+            DaemonError::NameInUse { name } => format!("Tab name '{}' already in use", name),
+            DaemonError::InvalidUrl { url, reason } => {
+                format!("Invalid URL '{}': {}", url, reason)
             }
-            Some(DaemonCommand::Fork { tab, name })
+            DaemonError::PageError { message } => message.trim_end().to_string(),
         }
-        "close" => {
-            let tab = parts.get(1)?.to_string();
-            Some(DaemonCommand::Close { tab })
+    }
+}
+
+/// Successful response parameters.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DaemonOk {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub message: String,
+}
+
+/// Daemon reply (varlink reply).
+///
+/// On success: `{"parameters": {"message": "..."}}` (or `{"parameters": {}}` for unit returns).
+/// On error: `{"error": "TabNotFound", "parameters": {"tab": "1"}}`.
+///
+/// `Err` is tried first when deserializing untagged: it requires a top-level
+/// `error` field, so success replies fall through to the `Ok` variant.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DaemonReply {
+    Err(DaemonError),
+    Ok { parameters: DaemonOk },
+}
+
+impl DaemonReply {
+    pub fn ok() -> Self {
+        DaemonReply::Ok {
+            parameters: DaemonOk::default(),
         }
-        "name" => {
-            let tab = parts.get(1)?.to_string();
-            let name = parts.get(2)?.to_string();
-            Some(DaemonCommand::Name { tab, name })
+    }
+
+    pub fn ok_message(message: impl Into<String>) -> Self {
+        DaemonReply::Ok {
+            parameters: DaemonOk {
+                message: message.into(),
+            },
         }
-        "tabs" => Some(DaemonCommand::Tabs),
-        "shutdown" => Some(DaemonCommand::Shutdown),
-        _ => None,
     }
 }
 
 #[cfg(test)]
-fn format_hypermap(value: &Value, indent: usize) -> String {
+pub fn format_hypermap(value: &Value, indent: usize) -> String {
     format_hypermap_styled(value, indent, false)
 }
 
@@ -258,187 +282,291 @@ fn format_hypermap_recursive(value: &Value, indent: usize, output: &mut String, 
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::io::Cursor;
 
-    // parse_command tests
+    // -- Roundtrip serialization tests ----------------------------------------
 
-    #[test]
-    fn parse_command_open() {
-        let cmd = parse_command("open https://example.com").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Open { ref url, name: None } if url == "https://example.com")
-        );
+    fn roundtrip(cmd: &DaemonCommand) -> DaemonCommand {
+        let json = serde_json::to_vec(cmd).unwrap();
+        serde_json::from_slice(&json).unwrap()
     }
 
     #[test]
-    fn parse_command_open_with_name() {
-        let cmd = parse_command("open https://example.com --name myapp").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Open { ref url, ref name } if url == "https://example.com" && name.as_deref() == Some("myapp"))
-        );
+    fn roundtrip_open() {
+        let cmd = DaemonCommand::Open {
+            url: "https://example.com".into(),
+            name: None,
+        };
+        assert!(matches!(
+            roundtrip(&cmd),
+            DaemonCommand::Open { ref url, name: None } if url == "https://example.com"
+        ));
     }
 
     #[test]
-    fn parse_command_open_with_spaces() {
-        let cmd = parse_command("open https://example.com/path with spaces").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Open { ref url, .. } if url == "https://example.com/path with spaces")
-        );
+    fn roundtrip_open_with_name() {
+        let cmd = DaemonCommand::Open {
+            url: "https://example.com".into(),
+            name: Some("myapp".into()),
+        };
+        assert!(matches!(
+            roundtrip(&cmd),
+            DaemonCommand::Open { ref url, ref name }
+                if url == "https://example.com" && name.as_deref() == Some("myapp")
+        ));
     }
 
     #[test]
-    fn parse_command_show() {
-        let cmd = parse_command("show 1").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Show { ref tab, path: None, color: false } if tab == "1")
-        );
+    fn roundtrip_show() {
+        let cmd = DaemonCommand::Show {
+            tab: "1".into(),
+            path: Some("nav/home".into()),
+            color: true,
+        };
+        assert!(matches!(
+            roundtrip(&cmd),
+            DaemonCommand::Show { ref tab, ref path, color: true }
+                if tab == "1" && path.as_deref() == Some("nav/home")
+        ));
     }
 
     #[test]
-    fn parse_command_show_with_path() {
-        let cmd = parse_command("show 1 nav/home").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Show { ref tab, ref path, color: false } if tab == "1" && path.as_deref() == Some("nav/home"))
-        );
-    }
-
-    #[test]
-    fn parse_command_show_with_color() {
-        let cmd = parse_command("show 1 --color").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Show { ref tab, path: None, color: true } if tab == "1")
-        );
-    }
-
-    #[test]
-    fn parse_command_show_with_path_and_color() {
-        let cmd = parse_command("show 1 nav/home --color").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Show { ref tab, ref path, color: true } if tab == "1" && path.as_deref() == Some("nav/home"))
-        );
-    }
-
-    #[test]
-    fn parse_command_set() {
-        let cmd = parse_command("set 1 market/ibm/quantity 100").unwrap();
-        if let DaemonCommand::Set { tab, path, value } = cmd {
+    fn roundtrip_set() {
+        let cmd = DaemonCommand::Set {
+            tab: "1".into(),
+            path: "market/ibm/quantity".into(),
+            value: "100".into(),
+        };
+        if let DaemonCommand::Set { tab, path, value } = roundtrip(&cmd) {
             assert_eq!(tab, "1");
             assert_eq!(path, "market/ibm/quantity");
             assert_eq!(value, "100");
         } else {
-            panic!("Expected Set command");
+            panic!("Expected Set");
         }
     }
 
     #[test]
-    fn parse_command_use() {
-        let cmd = parse_command("use 1 nav/home").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Use { ref tab, ref path, .. } if tab == "1" && path == "nav/home")
-        );
-    }
-
-    #[test]
-    fn parse_command_use_with_data() {
-        let cmd = parse_command("use 1 submit quantity=5").unwrap();
-        if let DaemonCommand::Use { tab, path, data } = cmd {
+    fn roundtrip_use_with_data() {
+        let mut data = HashMap::new();
+        data.insert("quantity".into(), "5".into());
+        let cmd = DaemonCommand::Use {
+            tab: "1".into(),
+            path: "submit".into(),
+            data,
+        };
+        if let DaemonCommand::Use { tab, path, data } = roundtrip(&cmd) {
             assert_eq!(tab, "1");
             assert_eq!(path, "submit");
-            assert_eq!(data, vec![("quantity".to_string(), "5".to_string())]);
+            assert_eq!(data.get("quantity"), Some(&"5".to_string()));
+            assert_eq!(data.len(), 1);
         } else {
-            panic!("Expected Use command");
+            panic!("Expected Use");
         }
     }
 
     #[test]
-    fn parse_command_fork() {
-        let cmd = parse_command("fork 1").unwrap();
-        if let DaemonCommand::Fork { tab, name } = cmd {
-            assert_eq!(tab, "1");
-            assert_eq!(name, None);
-        } else {
-            panic!("Expected Fork command");
+    fn use_data_serializes_as_json_object() {
+        let mut data = HashMap::new();
+        data.insert("quantity".into(), "5".into());
+        data.insert("symbol".into(), "IBM".into());
+        let cmd = DaemonCommand::Use {
+            tab: "1".into(),
+            path: "submit".into(),
+            data,
+        };
+        let val: Value = serde_json::to_value(&cmd).unwrap();
+        let params = &val["parameters"];
+        assert!(params["data"].is_object());
+        assert_eq!(params["data"]["quantity"], "5");
+        assert_eq!(params["data"]["symbol"], "IBM");
+    }
+
+    #[test]
+    fn roundtrip_fork() {
+        let cmd = DaemonCommand::Fork {
+            tab: "stocks".into(),
+            name: Some("stocks2".into()),
+        };
+        assert!(matches!(
+            roundtrip(&cmd),
+            DaemonCommand::Fork { ref tab, ref name }
+                if tab == "stocks" && name.as_deref() == Some("stocks2")
+        ));
+    }
+
+    #[test]
+    fn roundtrip_close() {
+        let cmd = DaemonCommand::Close {
+            tab: "2".into(),
+        };
+        assert!(matches!(roundtrip(&cmd), DaemonCommand::Close { ref tab } if tab == "2"));
+    }
+
+    #[test]
+    fn roundtrip_name() {
+        let cmd = DaemonCommand::Name {
+            tab: "1".into(),
+            name: "stocks".into(),
+        };
+        assert!(matches!(
+            roundtrip(&cmd),
+            DaemonCommand::Name { ref tab, ref name } if tab == "1" && name == "stocks"
+        ));
+    }
+
+    #[test]
+    fn roundtrip_tabs() {
+        assert!(matches!(roundtrip(&DaemonCommand::Tabs), DaemonCommand::Tabs));
+    }
+
+    #[test]
+    fn roundtrip_shutdown() {
+        assert!(matches!(
+            roundtrip(&DaemonCommand::Shutdown),
+            DaemonCommand::Shutdown
+        ));
+    }
+
+    #[test]
+    fn json_shape_matches_varlink() {
+        let cmd = DaemonCommand::Open {
+            url: "https://example.com".into(),
+            name: None,
+        };
+        let val: Value = serde_json::to_value(&cmd).unwrap();
+        assert_eq!(val["method"], "Open");
+        assert!(val["parameters"].is_object());
+    }
+
+    #[test]
+    fn json_shape_unit_variant() {
+        let val: Value = serde_json::to_value(&DaemonCommand::Tabs).unwrap();
+        assert_eq!(val["method"], "Tabs");
+        // Unit variants have no "parameters" key
+        assert!(val.get("parameters").is_none());
+    }
+
+    // -- Framing tests --------------------------------------------------------
+
+    #[test]
+    fn framing_roundtrip() {
+        let msg = b"hello";
+        let mut buf = Vec::new();
+        write_message(&mut buf, msg).unwrap();
+        assert_eq!(buf, b"hello\0");
+
+        let mut reader = Cursor::new(buf);
+        let read_back = read_message(&mut reader).unwrap();
+        assert_eq!(read_back, b"hello");
+    }
+
+    #[test]
+    fn framing_empty_stream() {
+        let mut reader = Cursor::new(Vec::<u8>::new());
+        assert!(read_message(&mut reader).is_err());
+    }
+
+    #[test]
+    fn framing_eof_without_null() {
+        // Data without null terminator — read_message returns data at EOF
+        let mut reader = Cursor::new(b"partial".to_vec());
+        let msg = read_message(&mut reader).unwrap();
+        assert_eq!(msg, b"partial");
+    }
+
+    // -- Reply tests ----------------------------------------------------------
+
+    #[test]
+    fn reply_ok_roundtrip() {
+        let reply = DaemonReply::ok_message("Opened tab 1");
+        let json = serde_json::to_vec(&reply).unwrap();
+        let parsed: DaemonReply = serde_json::from_slice(&json).unwrap();
+        match parsed {
+            DaemonReply::Ok { parameters } => assert_eq!(parameters.message, "Opened tab 1"),
+            DaemonReply::Err(_) => panic!("Expected Ok"),
         }
     }
 
     #[test]
-    fn parse_command_fork_with_name() {
-        let cmd = parse_command("fork 1 --name copy").unwrap();
-        if let DaemonCommand::Fork { tab, name } = cmd {
-            assert_eq!(tab, "1");
-            assert_eq!(name, Some("copy".to_string()));
-        } else {
-            panic!("Expected Fork command");
+    fn reply_ok_wire_shape() {
+        let val: Value = serde_json::to_value(DaemonReply::ok_message("Opened tab 1")).unwrap();
+        assert!(val.get("error").is_none());
+        assert_eq!(val["parameters"]["message"], "Opened tab 1");
+    }
+
+    #[test]
+    fn reply_ok_empty_omits_message() {
+        let val: Value = serde_json::to_value(DaemonReply::ok()).unwrap();
+        // Unit-return methods (`-> ()`) serialize as `{"parameters": {}}`.
+        assert!(val["parameters"].is_object());
+        assert_eq!(val["parameters"].as_object().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn reply_error_roundtrip() {
+        let reply = DaemonReply::Err(DaemonError::TabNotFound { tab: "1".into() });
+        let json = serde_json::to_vec(&reply).unwrap();
+        let parsed: DaemonReply = serde_json::from_slice(&json).unwrap();
+        match parsed {
+            DaemonReply::Err(DaemonError::TabNotFound { tab }) => assert_eq!(tab, "1"),
+            _ => panic!("Expected TabNotFound"),
         }
     }
 
     #[test]
-    fn parse_command_fork_by_name() {
-        let cmd = parse_command("fork stocks --name stocks2").unwrap();
-        if let DaemonCommand::Fork { tab, name } = cmd {
-            assert_eq!(tab, "stocks");
-            assert_eq!(name, Some("stocks2".to_string()));
-        } else {
-            panic!("Expected Fork command");
+    fn reply_error_wire_shape() {
+        let reply = DaemonReply::Err(DaemonError::InvalidUrl {
+            url: "bogus".into(),
+            reason: "no scheme".into(),
+        });
+        let val: Value = serde_json::to_value(&reply).unwrap();
+        assert_eq!(val["error"], "InvalidUrl");
+        assert_eq!(val["parameters"]["url"], "bogus");
+        assert_eq!(val["parameters"]["reason"], "no scheme");
+    }
+
+    #[test]
+    fn reply_distinguishes_ok_from_err() {
+        let err_json = r#"{"error": "TabNotFound", "parameters": {"tab": "1"}}"#;
+        let parsed: DaemonReply = serde_json::from_str(err_json).unwrap();
+        assert!(matches!(parsed, DaemonReply::Err(DaemonError::TabNotFound { .. })));
+
+        let ok_json = r#"{"parameters": {"message": "hi"}}"#;
+        let parsed: DaemonReply = serde_json::from_str(ok_json).unwrap();
+        assert!(matches!(parsed, DaemonReply::Ok { .. }));
+    }
+
+    #[test]
+    fn reply_ok_unit_parses_from_empty_parameters() {
+        let parsed: DaemonReply = serde_json::from_str(r#"{"parameters": {}}"#).unwrap();
+        match parsed {
+            DaemonReply::Ok { parameters } => assert_eq!(parameters.message, ""),
+            DaemonReply::Err(_) => panic!("Expected Ok"),
         }
     }
 
     #[test]
-    fn parse_command_close() {
-        let cmd = parse_command("close 2").unwrap();
-        assert!(matches!(cmd, DaemonCommand::Close { ref tab } if tab == "2"));
-    }
-
-    #[test]
-    fn parse_command_close_by_name() {
-        let cmd = parse_command("close myapp").unwrap();
-        assert!(matches!(cmd, DaemonCommand::Close { ref tab } if tab == "myapp"));
-    }
-
-    #[test]
-    fn parse_command_name() {
-        let cmd = parse_command("name 1 stocks").unwrap();
-        assert!(
-            matches!(cmd, DaemonCommand::Name { ref tab, ref name } if tab == "1" && name == "stocks")
+    fn error_user_messages() {
+        assert_eq!(
+            DaemonError::TabNotFound { tab: "1".into() }.user_message(),
+            "Tab '1' not found"
+        );
+        assert_eq!(
+            DaemonError::PathNotFound {
+                tab: "1".into(),
+                path: "nav/home".into()
+            }
+            .user_message(),
+            "Path 'nav/home' not found in tab '1'"
+        );
+        assert_eq!(
+            DaemonError::NameInUse { name: "stocks".into() }.user_message(),
+            "Tab name 'stocks' already in use"
         );
     }
 
-    #[test]
-    fn parse_command_tabs() {
-        let cmd = parse_command("tabs").unwrap();
-        assert!(matches!(cmd, DaemonCommand::Tabs));
-    }
-
-    #[test]
-    fn parse_command_shutdown() {
-        let cmd = parse_command("shutdown").unwrap();
-        assert!(matches!(cmd, DaemonCommand::Shutdown));
-    }
-
-    #[test]
-    fn parse_command_empty() {
-        assert!(parse_command("").is_none());
-    }
-
-    #[test]
-    fn parse_command_unknown() {
-        assert!(parse_command("unknown").is_none());
-    }
-
-    #[test]
-    fn parse_command_open_missing_url() {
-        // Currently returns empty string URL, which is valid
-        let cmd = parse_command("open").unwrap();
-        assert!(matches!(cmd, DaemonCommand::Open { ref url, .. } if url.is_empty()));
-    }
-
-    #[test]
-    fn parse_command_show_by_name() {
-        // show now accepts tab references (name or index)
-        let cmd = parse_command("show myapp").unwrap();
-        assert!(matches!(cmd, DaemonCommand::Show { ref tab, .. } if tab == "myapp"));
-    }
-
-    // format_hypermap tests
+    // -- format_hypermap tests ------------------------------------------------
 
     #[test]
     fn format_hypermap_simple_value() {

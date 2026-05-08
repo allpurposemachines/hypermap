@@ -14,22 +14,33 @@ path = "src/main.rs"
 [[bin]]
 name = "mechd"
 path = "src/mechd.rs"
+required-features = ["daemon"]
+
+[features]
+default = ["daemon"]
+# Enables the Servo-backed `mechd` daemon. Disabled when running lib tests so
+# that `cargo test --lib --no-default-features` skips Servo entirely.
+daemon = ["dep:servo", "dep:dpi", "dep:url", "dep:libc", "dep:rustls"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 clap = { version = "4.0", features = ["derive"] }
 
-# Servo browser engine for headless operation (used by mechd)
-servo = { git = "https://github.com/servo/servo", branch = "main", package = "libservo" }
-dpi = "0.1"
-url = "2.5"
-libc = "0.2"
-
-# Force rustls to enable aws_lc_rs feature for Servo compatibility
-rustls = { version = "0.23", features = ["aws_lc_rs"] }
+# Daemon-only dependencies — gated behind the `daemon` feature so the lib and
+# the `mech` client can be built/tested without pulling in Servo's dep tree.
+servo = { version = "0.1", default-features = false, features = ["baked-in-resources", "js_jit"], optional = true }
+dpi = { version = "0.1", optional = true }
+url = { version = "2.5", optional = true }
+libc = { version = "0.2", optional = true }
+# Forces aws_lc_rs for Servo compatibility.
+rustls = { version = "0.23", features = ["aws_lc_rs"], optional = true }
 
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.0"
 tempfile = "3.0"
+
+# Stop Servo taking up so much disk space
+[profile.dev.package."*"]
+debug = false
