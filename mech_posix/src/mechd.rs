@@ -8,7 +8,6 @@ use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{Read, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process;
@@ -22,7 +21,10 @@ use servo::{
 };
 use url::Url;
 
-use mech_cli::{cleanup, format_hypermap_styled, parse_command, pid_path, socket_path, DaemonCommand};
+use mech_cli::{
+    cleanup, format_hypermap_styled, pid_path, read_message, socket_path, write_message,
+    DaemonCommand, DaemonError, DaemonReply,
+};
 
 #[derive(Parser)]
 #[command(name = "mechd", about = "Mech daemon - headless browser backend")]
@@ -71,7 +73,7 @@ struct DaemonState {
     tabs: Vec<Tab>,
     tab_counter: usize,
     #[allow(dead_code)]
-    pending_responses: HashMap<usize, mpsc::Sender<String>>,
+    pending_responses: HashMap<usize, mpsc::Sender<DaemonReply>>,
 }
 
 /// Delegate for handling Servo-level events
@@ -187,7 +189,7 @@ fn start_daemon(foreground: bool) {
     }));
 
     // Start socket listener thread
-    let (cmd_tx, cmd_rx) = mpsc::channel::<(DaemonCommand, mpsc::Sender<String>)>();
+    let (cmd_tx, cmd_rx) = mpsc::channel::<(DaemonCommand, mpsc::Sender<DaemonReply>)>();
     std::thread::spawn(move || {
         socket_listener(cmd_tx);
     });
@@ -215,24 +217,43 @@ fn start_daemon(foreground: bool) {
     }
 }
 
-fn socket_listener(cmd_tx: mpsc::Sender<(DaemonCommand, mpsc::Sender<String>)>) {
+fn socket_listener(cmd_tx: mpsc::Sender<(DaemonCommand, mpsc::Sender<DaemonReply>)>) {
     let listener = UnixListener::bind(socket_path()).expect("Failed to bind socket");
 
     for stream in listener.incoming() {
         match stream {
             Ok(mut stream) => {
-                let mut buffer = String::new();
-                if stream.read_to_string(&mut buffer).is_ok()
-                    && let Some(cmd) = parse_command(&buffer)
-                {
-                    let (tx, rx) = mpsc::channel();
-                    let _ = cmd_tx.send((cmd, tx));
-
-                    // Wait for response
-                    if let Ok(response) = rx.recv() {
-                        let _ = stream.write_all(response.as_bytes());
-                        let _ = stream.shutdown(std::net::Shutdown::Write);
+                let msg = match read_message(&mut stream) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        eprintln!("Failed to read message: {}", e);
+                        continue;
                     }
+                };
+
+                let cmd: DaemonCommand = match serde_json::from_slice(&msg) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Invalid command: {}", e);
+                        let reply = DaemonReply::Err(DaemonError::PageError {
+                            message: format!("Protocol error: {}. Is mechd up to date?", e),
+                        });
+                        if let Ok(json) = serde_json::to_vec(&reply) {
+                            let _ = write_message(&mut stream, &json);
+                        }
+                        let _ = stream.shutdown(std::net::Shutdown::Write);
+                        continue;
+                    }
+                };
+
+                let (tx, rx) = mpsc::channel();
+                let _ = cmd_tx.send((cmd, tx));
+
+                if let Ok(reply) = rx.recv() {
+                    if let Ok(json) = serde_json::to_vec(&reply) {
+                        let _ = write_message(&mut stream, &json);
+                    }
+                    let _ = stream.shutdown(std::net::Shutdown::Write);
                 }
             }
             Err(e) => eprintln!("Socket error: {}", e),
@@ -243,17 +264,18 @@ fn socket_listener(cmd_tx: mpsc::Sender<(DaemonCommand, mpsc::Sender<String>)>) 
 fn handle_command(
     state: &Rc<RefCell<DaemonState>>,
     cmd: DaemonCommand,
-    response_tx: mpsc::Sender<String>,
+    response_tx: mpsc::Sender<DaemonReply>,
 ) {
     let mut state_ref = state.borrow_mut();
 
     match cmd {
         DaemonCommand::Open { url, name } => {
-            // Check if name is already in use
             if let Some(ref n) = name
                 && state_ref.tabs.iter().any(|t| t.name.as_deref() == Some(n))
             {
-                let _ = response_tx.send(format!("Tab name '{}' already in use\n", n));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::NameInUse {
+                    name: n.clone(),
+                }));
                 return;
             }
 
@@ -263,14 +285,14 @@ fn handle_command(
                 format!("https://{}", url)
             };
 
-            // Create a new software rendering context for this tab
             let size = PhysicalSize::new(1024, 768);
             let rendering_context: Rc<dyn RenderingContext> =
                 match SoftwareRenderingContext::new(size) {
                     Ok(ctx) => Rc::new(ctx),
                     Err(e) => {
-                        let _ = response_tx
-                            .send(format!("Failed to create rendering context: {:?}\n", e));
+                        let _ = response_tx.send(DaemonReply::Err(DaemonError::PageError {
+                            message: format!("Failed to create rendering context: {:?}", e),
+                        }));
                         return;
                     }
                 };
@@ -281,12 +303,14 @@ fn handle_command(
             let servo_url = match Url::parse(&full_url) {
                 Ok(u) => u,
                 Err(e) => {
-                    let _ = response_tx.send(format!("Invalid URL: {:?}\n", e));
+                    let _ = response_tx.send(DaemonReply::Err(DaemonError::InvalidUrl {
+                        url: full_url,
+                        reason: format!("{:?}", e),
+                    }));
                     return;
                 }
             };
 
-            // Create WebView
             let delegate = Rc::new(MechWebViewDelegate {
                 state: state.clone(),
             });
@@ -307,21 +331,23 @@ fn handle_command(
             let display_name = name
                 .map(|n| format!("{} ({})", tab_id + 1, n))
                 .unwrap_or_else(|| (tab_id + 1).to_string());
-            let _ = response_tx.send(format!("Opened tab {} at {}\n", display_name, url));
+            let _ = response_tx.send(DaemonReply::ok_message(format!(
+                "Opened tab {} at {}\n",
+                display_name, url
+            )));
         }
 
         DaemonCommand::Show { tab, path, color } => {
             if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 let tab_data = &state_ref.tabs[idx];
 
-                // Query JavaScript for the current hypermap state
-                // Returns hypermap if available, or diagnostic info if not
+                // Query JavaScript for the current hypermap state.
+                // Returns hypermap if available, or diagnostic info if not.
                 let script = r#"
                     (function() {
                         if (window.hypermap) {
                             return { ok: true, data: JSON.parse(JSON.stringify(window.hypermap)) };
                         }
-                        // No hypermap - gather diagnostic info
                         return {
                             ok: false,
                             readyState: document.readyState,
@@ -333,6 +359,7 @@ fn handle_command(
                 "#
                 .to_string();
 
+                let tab_clone = tab.clone();
                 let path_clone = path.clone();
                 let response_tx_clone = response_tx.clone();
                 tab_data
@@ -341,7 +368,6 @@ fn handle_command(
                         Ok(jsval) => {
                             let response = jsvalue_to_json(&jsval);
 
-                            // Check if we got hypermap data or diagnostic info
                             if response.get("ok") == Some(&Value::Bool(true)) {
                                 let hypermap = response.get("data").cloned().unwrap_or(Value::Null);
 
@@ -352,28 +378,37 @@ fn handle_command(
                                 };
                                 match value {
                                     Some(v) => {
-                                        let _ = response_tx_clone
-                                            .send(format_hypermap_styled(&v, 0, color));
+                                        let _ = response_tx_clone.send(DaemonReply::ok_message(
+                                            format_hypermap_styled(&v, 0, color),
+                                        ));
                                     }
                                     None => {
-                                        let _ =
-                                            response_tx_clone.send("Path not found\n".to_string());
+                                        let _ = response_tx_clone.send(DaemonReply::Err(
+                                            DaemonError::PathNotFound {
+                                                tab: tab_clone.clone(),
+                                                path: path_clone.clone().unwrap_or_default(),
+                                            },
+                                        ));
                                     }
                                 }
                             } else {
-                                // No hypermap - format diagnostic error message
                                 let msg = format_load_error(&response);
-                                let _ = response_tx_clone.send(msg);
+                                let _ = response_tx_clone.send(DaemonReply::Err(
+                                    DaemonError::PageError { message: msg },
+                                ));
                             }
                         }
                         Err(e) => {
-                            let _ = response_tx_clone
-                                .send(format!("Failed to query page: {:?}\n", e));
+                            let _ = response_tx_clone.send(DaemonReply::Err(
+                                DaemonError::PageError {
+                                    message: format!("Failed to query page: {:?}", e),
+                                },
+                            ));
                         }
                     });
-                // Response will be sent by the callback
+                // Response will be sent by the callback above.
             } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::TabNotFound { tab }));
             }
         }
 
@@ -381,7 +416,6 @@ fn handle_command(
             if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 let tab_data = &state_ref.tabs[idx];
 
-                // Just input the value, don't trigger use
                 let script = format!(
                     r#"
                     if (window.hypermap) {{
@@ -391,9 +425,9 @@ fn handle_command(
                     path, value
                 );
                 tab_data.webview.evaluate_javascript(script, |_| {});
-                let _ = response_tx.send(String::new());
+                let _ = response_tx.send(DaemonReply::ok());
             } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::TabNotFound { tab }));
             }
         }
 
@@ -401,7 +435,6 @@ fn handle_command(
             if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 let tab_data = &state_ref.tabs[idx];
 
-                // Set form data first
                 for (key, value) in &data {
                     let full_path = format!("{}/{}", path, key);
                     let script = format!(
@@ -415,7 +448,6 @@ fn handle_command(
                     tab_data.webview.evaluate_javascript(script, |_| {});
                 }
 
-                // Then use the control
                 let script = format!(
                     r#"
                     if (window.hypermap) {{
@@ -426,7 +458,6 @@ fn handle_command(
                 );
                 tab_data.webview.evaluate_javascript(script, |_| {});
 
-                // Update the tab's URL after navigation completes
                 let state_clone = state.clone();
                 tab_data
                     .webview
@@ -440,32 +471,33 @@ fn handle_command(
                         }
                     });
 
-                let _ = response_tx.send(String::new());
+                let _ = response_tx.send(DaemonReply::ok());
             } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::TabNotFound { tab }));
             }
         }
 
         DaemonCommand::Fork { tab, name } => {
-            // Check if name is already in use
             if let Some(ref n) = name
                 && state_ref.tabs.iter().any(|t| t.name.as_deref() == Some(n))
             {
-                let _ = response_tx.send(format!("Tab name '{}' already in use\n", n));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::NameInUse {
+                    name: n.clone(),
+                }));
                 return;
             }
 
             if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 let source_url = state_ref.tabs[idx].url.clone();
 
-                // Create a new tab with the same URL
                 let size = PhysicalSize::new(1024, 768);
                 let rendering_context: Rc<dyn RenderingContext> =
                     match SoftwareRenderingContext::new(size) {
                         Ok(ctx) => Rc::new(ctx),
                         Err(e) => {
-                            let _ = response_tx
-                                .send(format!("Failed to create rendering context: {:?}\n", e));
+                            let _ = response_tx.send(DaemonReply::Err(DaemonError::PageError {
+                                message: format!("Failed to create rendering context: {:?}", e),
+                            }));
                             return;
                         }
                     };
@@ -476,7 +508,10 @@ fn handle_command(
                 let servo_url = match Url::parse(&source_url) {
                     Ok(u) => u,
                     Err(e) => {
-                        let _ = response_tx.send(format!("Invalid URL: {:?}\n", e));
+                        let _ = response_tx.send(DaemonReply::Err(DaemonError::InvalidUrl {
+                            url: source_url,
+                            reason: format!("{:?}", e),
+                        }));
                         return;
                     }
                 };
@@ -501,42 +536,51 @@ fn handle_command(
                 let display_name = name
                     .map(|n| format!("{} ({})", tab_id + 1, n))
                     .unwrap_or_else(|| (tab_id + 1).to_string());
-                let _ = response_tx.send(format!("Forked to tab {}\n", display_name));
+                let _ = response_tx.send(DaemonReply::ok_message(format!(
+                    "Forked to tab {}\n",
+                    display_name
+                )));
             } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::TabNotFound { tab }));
             }
         }
 
         DaemonCommand::Close { tab } => {
             if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 state_ref.tabs.remove(idx);
-                let _ = response_tx.send(format!("Closed tab '{}'\n", tab));
+                let _ = response_tx.send(DaemonReply::ok_message(format!(
+                    "Closed tab '{}'\n",
+                    tab
+                )));
             } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::TabNotFound { tab }));
             }
         }
 
         DaemonCommand::Name { tab, name } => {
-            // Check if new name is already in use
             if state_ref
                 .tabs
                 .iter()
                 .any(|t| t.name.as_deref() == Some(&name))
             {
-                let _ = response_tx.send(format!("Tab name '{}' already in use\n", name));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::NameInUse { name }));
                 return;
             }
             if let Some(idx) = resolve_tab(&state_ref.tabs, &tab) {
                 state_ref.tabs[idx].name = Some(name.clone());
-                let _ = response_tx.send(format!("Tab {} renamed to '{}'\n", idx + 1, name));
+                let _ = response_tx.send(DaemonReply::ok_message(format!(
+                    "Tab {} renamed to '{}'\n",
+                    idx + 1,
+                    name
+                )));
             } else {
-                let _ = response_tx.send(format!("Tab '{}' not found\n", tab));
+                let _ = response_tx.send(DaemonReply::Err(DaemonError::TabNotFound { tab }));
             }
         }
 
         DaemonCommand::Tabs => {
             if state_ref.tabs.is_empty() {
-                let _ = response_tx.send("No open tabs\n".to_string());
+                let _ = response_tx.send(DaemonReply::ok_message("No open tabs\n"));
             } else {
                 let mut output = String::new();
                 for (i, tab) in state_ref.tabs.iter().enumerate() {
@@ -547,12 +591,12 @@ fn handle_command(
                         .unwrap_or_default();
                     output.push_str(&format!("{}{}  {}\n", i + 1, name_part, tab.url));
                 }
-                let _ = response_tx.send(output);
+                let _ = response_tx.send(DaemonReply::ok_message(output));
             }
         }
 
         DaemonCommand::Shutdown => {
-            let _ = response_tx.send(String::new());
+            let _ = response_tx.send(DaemonReply::ok());
             cleanup();
             process::exit(0);
         }
@@ -588,7 +632,9 @@ fn get_value_at_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
     Some(current)
 }
 
-/// Format a diagnostic error message when hypermap content is not available
+/// Build a diagnostic message describing why hypermap content is unavailable.
+/// The returned string is wrapped in `DaemonError::PageError`, so it carries
+/// no trailing newline.
 fn format_load_error(diagnostics: &Value) -> String {
     let ready_state = diagnostics
         .get("readyState")
@@ -607,13 +653,12 @@ fn format_load_error(diagnostics: &Value) -> String {
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    // Check for common error patterns
     let title_lower = title.to_lowercase();
     let body_lower = body_text.to_lowercase();
 
     if title_lower.contains("not found") || body_lower.contains("not found") || title.contains("404")
     {
-        return format!("Page not found (404): {}\n", title);
+        return format!("Page not found (404): {}", title);
     }
 
     if title_lower.contains("error") || body_lower.contains("error") {
@@ -622,25 +667,24 @@ fn format_load_error(diagnostics: &Value) -> String {
         } else {
             body_text.lines().next().unwrap_or("Unknown error")
         };
-        return format!("Page error: {}\n", error_hint);
+        return format!("Page error: {}", error_hint);
     }
 
     if ready_state == "loading" {
-        return "Page is still loading...\n".to_string();
+        return "Page is still loading...".to_string();
     }
 
     if ready_state == "complete" && !has_pre {
-        return "Page loaded but contains no hypermap content (no <pre> element)\n".to_string();
+        return "Page loaded but contains no hypermap content (no <pre> element)".to_string();
     }
 
     if ready_state == "complete" && has_pre {
-        return "Page loaded but hypermap failed to initialize (check if page serves valid JSON)\n"
+        return "Page loaded but hypermap failed to initialize (check if page serves valid JSON)"
             .to_string();
     }
 
-    // Fallback
     format!(
-        "No hypermap content (readyState: {}, title: {})\n",
+        "No hypermap content (readyState: {}, title: {})",
         ready_state,
         if title.is_empty() { "<none>" } else { title }
     )
