@@ -10,7 +10,7 @@ other, forming a minimalist, data-oriented DOM &mdash; a tree where values
 change, events bubble up, and JavaScript or WebAssembly ships from the server and
 runs on the client in OS-level process isolation.
 
-<div class="artifact-callouts artifact-callouts--pair">
+<div class="artifact-callouts">
 <a href="/spec/" class="artifact">
 <strong>The Spec</strong>
 <span>Format definition. OWFa 1.0.</span>
@@ -25,7 +25,7 @@ runs on the client in OS-level process isolation.
 as a POSIX daemon. There's no separate spec to write and no client to generate
 &mdash; each resource describes itself, and Mech understands them all.
 
-<div class="artifact-callouts artifact-callouts--pair">
+<div class="artifact-callouts">
 <a href="https://npmx.dev/package/@hypermap/mech" class="artifact">
 <strong>Mech (Browser)</strong>
 <span>Browser client. v0.10.0</span>
