@@ -12,17 +12,39 @@
 	<!-- End Google tag (gtag.js) -->
 
 	<meta charset="UTF-8">
-	<title>HyperMap and Mech Documentation | All-Purpose Machines</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	{%- set pageTitle = (title + " | " + site.name) if title else (site.name + " | " + site.tagline) %}
+	{%- set pageDescription = description or site.description %}
+	<title>{{ pageTitle }}</title>
+	<meta name="description" content="{{ pageDescription }}">
+	{%- if noindex %}
+	<meta name="robots" content="noindex">
+	{%- elif page.url %}
+	<link rel="canonical" href="{{ site.url }}{{ page.url }}">
+	<meta property="og:url" content="{{ site.url }}{{ page.url }}">
+	{%- endif %}
+	<meta property="og:type" content="website">
+	<meta property="og:site_name" content="{{ site.name }}">
+	<meta property="og:title" content="{{ title or site.name }}">
+	<meta property="og:description" content="{{ pageDescription }}">
+	<meta property="og:image" content="{{ site.url }}/og-image.png">
+	<meta property="og:image:width" content="1200">
+	<meta property="og:image:height" content="630">
+	<meta property="og:image:alt" content="HyperMap: Putting the Web back into Web Services, beside a dithered drawing of a twisting polyhedron">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="theme-color" content="#ffffff">
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+	<link rel="sitemap" type="application/xml" href="/sitemap.xml">
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/xcode.min.css">
+	<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Semi+Condensed:wght@400;500&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/iosevka@latest/index.css">
 	<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 	{% include "partials/nav.njk" %}
 	{{ content | safe }}
+	{% if not hideFooter %}{% include "partials/footer.njk" %}{% endif %}
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>

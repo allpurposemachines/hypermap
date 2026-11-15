@@ -1,4 +1,6 @@
 ---
+title: About HyperMap and Mech
+description: An overview of HyperMap, a JSON hypermedia format for living, scriptable REST resources, and Mech, its user agent.
 layout: layouts/docs.njk
 ---
 

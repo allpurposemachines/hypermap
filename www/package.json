@@ -1,0 +1,15 @@
+{
+  "name": "hypermap-www",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "make -C ../spec && eleventy",
+    "serve": "make -C ../spec && eleventy --serve"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  }
+}

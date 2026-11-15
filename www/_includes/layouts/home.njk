@@ -1,11 +1,13 @@
 ---
-layout: ./base.njk
+layout: layouts/base.njk
 ---
 
 <header class="hero">
 	<div>
+		{% include "partials/twister.njk" %}
 		<h1>{{ heading }}</h1>
-		<p>{{ subheading }}</p>
+		<p>{{ subheading | safe }}</p>
+		<pre><code>Content-Type: application/vnd.hypermap+json</code></pre>
 	</div>
 </header>
 

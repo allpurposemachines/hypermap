@@ -1,12 +1,12 @@
 <nav class="site-nav">
 	<div>
-		<h1 class="site-title">
+		<div class="site-title">
 			<a href="/"><span class="logo-full">HyperMap</span><span class="logo-short">HM</span></a>
-		</h1>
+		</div>
 		<ul>
-			<li><a href="/docs/"{% if url and url.startsWith("/docs/") %} class="active"{% endif %}>Docs</a></li>
-			<li><a href="/spec/"{% if url == "/spec/" %} class="active"{% endif %}>Spec</a></li>
-			<li><a href="/explorer/"{% if url == "/explorer/" %} class="active"{% endif %}>Explorer</a></li>
+			<li><a href="/docs/"{% if page.url and page.url.startsWith("/docs/") %} class="active"{% endif %}>Docs</a></li>
+			<li><a href="/spec/"{% if page.url == "/spec/" %} class="active"{% endif %}>Spec</a></li>
+			<li><a href="/explorer/"{% if page.url == "/explorer/" %} class="active"{% endif %}>Explorer</a></li>
 			<li><a href="https://github.com/allpurposemachines/hypermap">Code</a></li>
 			<li><a href="https://bsky.app/profile/auxilit.com">Social</a></li>
 		</ul>

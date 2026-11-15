@@ -1,0 +1,13 @@
+<div class="twister" id="twister" aria-hidden="true"></div>
+<script type="importmap">
+{
+	"imports": {
+		"three": "/vendor/three/three.module.min.js",
+		"three/addons/": "/vendor/three/"
+	}
+}
+</script>
+<script type="module">
+	import { mountTwister } from '/js/twister.js';
+	mountTwister(document.getElementById('twister'));
+</script>

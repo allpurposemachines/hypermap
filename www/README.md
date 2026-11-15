@@ -1,12 +1,19 @@
 # Website
 
 Source for [hypermap.dev](https://www.hypermap.dev). Built with
-[Lume](https://lume.land/) (Deno).
+[Eleventy](https://www.11ty.dev/) on Node.
+
+## Setup
+
+```sh
+nvm use
+npm install
+```
 
 ## Development
 
 ```sh
-deno task serve
+npm run serve
 ```
 
 Builds the site and starts a local server with live reload.
@@ -14,7 +21,7 @@ Builds the site and starts a local server with live reload.
 ## Building
 
 ```sh
-deno task build
+npm run build
 ```
 
 Output is written to `_site/`.
@@ -25,4 +32,5 @@ Both `build` and `serve` run `make -C ../spec` first, so
 
 ## License
 
-CC BY 4.0 — see [LICENSE](LICENSE).
+Docs and site content are CC BY 4.0; code (including code samples in the docs)
+is MIT. See [LICENSE](LICENSE).
