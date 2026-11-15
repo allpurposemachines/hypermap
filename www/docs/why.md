@@ -1,4 +1,6 @@
 ---
+title: Why HyperMap
+description: APIs are islands; the Web is a graph. Why HyperMap adds links, forms, and server-shipped scripts to JSON responses.
 layout: layouts/docs.njk
 ---
 

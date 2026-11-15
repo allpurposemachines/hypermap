@@ -1,4 +1,6 @@
 ---
+title: Converting an API
+description: A tutorial on progressively enhancing an existing REST service into HyperMap, step by step.
 layout: layouts/docs.njk
 ---
 

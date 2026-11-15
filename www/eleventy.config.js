@@ -3,6 +3,13 @@ import path from "node:path";
 
 export default function (eleventyConfig) {
 	eleventyConfig.addPassthroughCopy("styles.css");
+	eleventyConfig.addPassthroughCopy("favicon.svg");
+	eleventyConfig.addPassthroughCopy("og-image.png");
+	eleventyConfig.addPassthroughCopy("js");
+	eleventyConfig.addPassthroughCopy({
+		"node_modules/three/build/three.module.min.js": "vendor/three/three.module.min.js",
+		"node_modules/three/examples/jsm/lines": "vendor/three/lines",
+	});
 
 	eleventyConfig.ignores.add("README.md");
 	eleventyConfig.ignores.add("LICENSE");

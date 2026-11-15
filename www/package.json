@@ -8,5 +8,8 @@
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.0.0"
+  },
+  "dependencies": {
+    "three": "0.160.0"
   }
 }

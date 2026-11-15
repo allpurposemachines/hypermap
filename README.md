@@ -22,7 +22,7 @@ For documentation and getting started, visit
 | [example_server](example_server/) | Demo server showcasing HyperMap features | Deno |
 | [explorer](explorer/) | Interactive HyperMap explorer UI | HTML |
 | [spec](spec/) | The HyperMap specification | Bikeshed |
-| [www](www/) | Website ([hypermap.dev](https://www.hypermap.dev)) | Lume / Deno |
+| [www](www/) | Website ([hypermap.dev](https://www.hypermap.dev)) | Eleventy / Node |
 
 ## Development
 

@@ -32,4 +32,5 @@ Both `build` and `serve` run `make -C ../spec` first, so
 
 ## License
 
-CC BY 4.0 — see [LICENSE](LICENSE).
+Docs and site content are CC BY 4.0; code (including code samples in the docs)
+is MIT. See [LICENSE](LICENSE).

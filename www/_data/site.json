@@ -1,0 +1,6 @@
+{
+	"url": "https://www.hypermap.dev",
+	"name": "HyperMap",
+	"tagline": "Putting the Web back into Web Services",
+	"description": "HyperMap is a hypermedia format that gives data the Web’s own architecture: every response carries its own links, actions, and code, so a service can constantly evolve."
+}
